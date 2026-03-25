@@ -1,9 +1,27 @@
 import { useGameState } from '../context/GameContext';
 import { Trophy } from 'lucide-react';
+import { MOCK_TEAMS } from '../data/mockData';
 
 export default function Leaderboard() {
-  const { teams, currentTeamId } = useGameState();
-  const sorted = [...teams].sort((a, b) => b.hp - a.hp);
+  const { group } = useGameState();
+
+  // Build leaderboard: current team + mock rivals
+  const currentTeam = group ? {
+    id: group.id,
+    name: group.name,
+    hp: group.hp,
+    maxHp: group.max_hp || 100,
+    shieldActive: group.shield_active,
+    isPlayerTeam: true,
+  } : MOCK_TEAMS[0];
+
+  const rivals = MOCK_TEAMS.filter(t => !t.isPlayerTeam).map(t => ({
+    ...t,
+    isPlayerTeam: false,
+  }));
+
+  const allTeams = [currentTeam, ...rivals];
+  const sorted = [...allTeams].sort((a, b) => b.hp - a.hp);
 
   return (
     <div className="card" id="leaderboard">
@@ -15,9 +33,9 @@ export default function Leaderboard() {
       <div className="flex flex-col gap-4 stagger">
         {sorted.map((team, idx) => {
           const rank = idx + 1;
-          const isCurrentTeam = team.id === currentTeamId;
+          const isCurrentTeam = team.isPlayerTeam;
           const rankClass = rank <= 3 ? `rank-${rank}` : 'rank-default';
-          const hpPercent = (team.hp / team.maxHp) * 100;
+          const hpPercent = (team.hp / (team.maxHp || 100)) * 100;
           const hpStatus = hpPercent > 60 ? 'healthy' : hpPercent > 30 ? 'warning' : 'critical';
 
           const hpColor =

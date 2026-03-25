@@ -1,30 +1,44 @@
 import { useState } from 'react';
 import { CLUBS } from '../data/clubData';
+import { useGameState, useToast, useSupabaseActions } from '../context/GameContext';
 import {
   ArrowLeft, Trophy, Users, Shield, Zap, TrendingUp, Gift,
-  Star, Award, ChevronRight, Sparkles, BarChart3, Heart
+  Star, Award, ChevronRight, Sparkles, BarChart3, Heart, CheckCircle
 } from 'lucide-react';
 
 export default function ClubDashboard({ clubId, onBack }) {
   const club = CLUBS.find(c => c.id === clubId);
   const [userPoints] = useState(80);
+  const { collectedRewards } = useGameState();
+  const actions = useSupabaseActions();
+  const addToast = useToast();
+  const [claimingId, setClaimingId] = useState(null);
 
   if (!club) return null;
 
   const sortedSquads = [...club.squads].sort((a, b) => b.points - a.points);
   const topSquad = sortedSquads[0];
-  // Most consistent = highest streak
   const mostConsistent = [...club.squads].sort((a, b) => b.streak - a.streak)[0];
+
+  const handleClaim = (reward) => {
+    if (collectedRewards.includes(reward.id)) return;
+    setClaimingId(reward.id);
+
+    setTimeout(() => {
+      actions.collectReward(reward.id, clubId);
+      addToast(`🎉 Collected: ${reward.title}!`, 'success');
+      setClaimingId(null);
+    }, 800);
+  };
 
   return (
     <div className="club-dashboard-wrapper">
-      {/* ── Back button ── */}
       <button className="btn btn-outline btn-sm" onClick={onBack} id="club-back-btn" style={{ marginBottom: 16 }}>
         <ArrowLeft size={16} />
         Back to Clubs
       </button>
 
-      {/* ── Club Hero ── */}
+      {/* Club Hero */}
       <div className="club-hero" style={{ '--club-color': club.color, '--club-glow': club.colorGlow }}>
         <div className="club-hero-gradient" style={{ background: club.gradient }} />
         <div className="club-hero-content">
@@ -60,10 +74,9 @@ export default function ClubDashboard({ clubId, onBack }) {
         </div>
       </div>
 
-      {/* ── Dashboard Grid ── */}
+      {/* Dashboard Grid */}
       <div className="club-dash-grid">
-
-        {/* ── Squad Leaderboard ── */}
+        {/* Squad Leaderboard */}
         <div className="card club-dash-leaderboard" id="club-leaderboard">
           <div className="section-title">
             <Trophy size={14} />
@@ -114,10 +127,9 @@ export default function ClubDashboard({ clubId, onBack }) {
           </div>
         </div>
 
-        {/* ── Right Column: Rewards + Partners ── */}
+        {/* Right Column */}
         <div className="club-dash-right">
-
-          {/* ── Rewards Section ── */}
+          {/* Rewards */}
           <div className="card" id="club-rewards">
             <div className="section-title">
               <Gift size={14} />
@@ -132,10 +144,18 @@ export default function ClubDashboard({ clubId, onBack }) {
               {club.rewards.map(reward => {
                 const progress = Math.min((userPoints / reward.points) * 100, 100);
                 const canClaim = userPoints >= reward.points;
+                const isCollected = collectedRewards.includes(reward.id);
+                const isClaiming = claimingId === reward.id;
 
                 return (
-                  <div key={reward.id} className="reward-card" style={{ '--club-color': club.color, '--club-glow': club.colorGlow }}>
-                    <div className="reward-icon">{reward.icon}</div>
+                  <div
+                    key={reward.id}
+                    className={`reward-card ${isClaiming ? 'reward-claiming' : ''} ${isCollected ? 'reward-collected' : ''}`}
+                    style={{ '--club-color': club.color, '--club-glow': club.colorGlow }}
+                  >
+                    <div className={`reward-icon ${isClaiming ? 'reward-icon-spin' : ''}`}>
+                      {isCollected ? '✅' : reward.icon}
+                    </div>
                     <h4 className="reward-title">{reward.title}</h4>
                     <div className="reward-eligibility">{reward.eligibility}</div>
                     <div className="reward-progress-wrapper">
@@ -143,29 +163,54 @@ export default function ClubDashboard({ clubId, onBack }) {
                         <div
                           className="reward-progress-fill"
                           style={{
-                            width: `${progress}%`,
-                            background: canClaim ? club.gradient : 'var(--bg-elevated)',
+                            width: isCollected ? '100%' : `${progress}%`,
+                            background: isCollected ? 'var(--accent-green)' : canClaim ? club.gradient : 'var(--bg-elevated)',
                           }}
                         />
                       </div>
-                      <span className="reward-progress-text" style={{ color: canClaim ? club.color : 'var(--text-muted)' }}>
-                        {userPoints} / {reward.points} pts
+                      <span className="reward-progress-text" style={{ color: isCollected ? 'var(--accent-green)' : canClaim ? club.color : 'var(--text-muted)' }}>
+                        {isCollected ? 'Collected!' : `${userPoints} / ${reward.points} pts`}
                       </span>
                     </div>
                     <button
-                      className={`btn btn-sm w-full ${canClaim ? '' : 'btn-outline'}`}
-                      style={canClaim ? { background: club.gradient, color: '#fff' } : { opacity: 0.5 }}
-                      disabled={!canClaim}
+                      className={`btn btn-sm w-full ${isCollected ? 'btn-outline' : canClaim ? '' : 'btn-outline'}`}
+                      style={
+                        isCollected
+                          ? { background: 'rgba(134, 239, 172, 0.15)', color: 'var(--accent-green)', cursor: 'default' }
+                          : canClaim
+                            ? { background: club.gradient, color: '#fff' }
+                            : { opacity: 0.5 }
+                      }
+                      disabled={!canClaim || isCollected}
+                      onClick={() => handleClaim(reward)}
                     >
-                      {canClaim ? 'Claim Reward' : 'Not Enough Points'}
+                      {isCollected
+                        ? <><CheckCircle size={14} /> Collected</>
+                        : isClaiming
+                          ? '✨ Claiming...'
+                          : canClaim
+                            ? '🎁 Claim Reward'
+                            : 'Not Enough Points'
+                      }
                     </button>
+
+                    {/* Confetti overlay */}
+                    {isClaiming && (
+                      <div className="reward-confetti">
+                        <span className="confetti-piece c1">🎊</span>
+                        <span className="confetti-piece c2">✨</span>
+                        <span className="confetti-piece c3">🎉</span>
+                        <span className="confetti-piece c4">⭐</span>
+                        <span className="confetti-piece c5">💫</span>
+                      </div>
+                    )}
                   </div>
                 );
               })}
             </div>
           </div>
 
-          {/* ── Partners ── */}
+          {/* Partners */}
           <div className="card" id="club-partners">
             <div className="section-title">
               <Sparkles size={14} />

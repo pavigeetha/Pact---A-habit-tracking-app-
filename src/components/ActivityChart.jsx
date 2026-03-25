@@ -1,8 +1,9 @@
 import { useGameState } from '../context/GameContext';
 import { BarChart3, TrendingUp, TrendingDown } from 'lucide-react';
+import { MOCK_WEEKLY_ACTIVITY } from '../data/mockData';
 
 export default function ActivityChart() {
-  const { weeklyActivity } = useGameState();
+  const weeklyActivity = MOCK_WEEKLY_ACTIVITY;
   const maxVal = Math.max(...weeklyActivity.map(d => d.completed + d.missed), 1);
 
   // Detect trend: compare first half vs second half
