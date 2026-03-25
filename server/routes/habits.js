@@ -5,6 +5,71 @@ import { authenticate } from '../middleware/auth.js'
 const router = Router()
 router.use(authenticate)
 
+// Create a private habit
+router.post('/', async (req, res) => {
+  try {
+    const { title, description } = req.body
+    if (!title?.trim()) return res.status(400).json({ message: 'Title is required' })
+
+    const { data: habit, error } = await supabase
+      .from('habits')
+      .insert({
+        user_id: req.userId,
+        group_id: null,
+        title: title.trim(),
+        description: description?.trim() || '',
+        type: 'private',
+        validation_type: 'self',
+        is_active: true,
+      })
+      .select()
+      .single()
+
+    if (error) return res.status(500).json({ message: 'Failed to create habit' })
+    res.status(201).json({ habit })
+  } catch (err) {
+    console.error('Create habit error:', err)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
+// Add habit(s) to an existing group
+router.post('/group/:groupId', async (req, res) => {
+  try {
+    const { groupId } = req.params
+    const { habits } = req.body
+
+    if (!habits?.length) return res.status(400).json({ message: 'At least one habit is required' })
+
+    // Verify membership
+    const { data: membership } = await supabase
+      .from('group_members')
+      .select('id')
+      .eq('group_id', groupId)
+      .eq('user_id', req.userId)
+      .maybeSingle()
+
+    if (!membership) return res.status(403).json({ message: 'Not a member of this group' })
+
+    const inserts = habits.map(h => ({
+      user_id: req.userId,
+      group_id: groupId,
+      title: h.title.trim(),
+      description: h.description?.trim() || '',
+      type: 'group',
+      validation_type: h.validation_type || 'peer',
+      is_active: true,
+    }))
+
+    const { data, error } = await supabase.from('habits').insert(inserts).select()
+    if (error) return res.status(500).json({ message: 'Failed to add habits' })
+    res.status(201).json({ habits: data })
+  } catch (err) {
+    console.error('Add group habits error:', err)
+    res.status(500).json({ message: 'Internal server error' })
+  }
+})
+
 // Log a habit (check in)
 router.post('/:id/log', async (req, res) => {
   try {
@@ -17,11 +82,14 @@ router.post('/:id/log', async (req, res) => {
       .eq('id', habitId)
       .single()
 
-    if (!habit) {
-      return res.status(404).json({ message: 'Habit not found' })
+    if (!habit) return res.status(404).json({ message: 'Habit not found' })
+
+    // Private habits: must be the owner
+    if (habit.type === 'private' && habit.user_id !== req.userId) {
+      return res.status(403).json({ message: 'Not your habit' })
     }
 
-    // If group habit, verify membership
+    // Group habits: must be a member
     if (habit.group_id) {
       const { data: membership } = await supabase
         .from('group_members')
@@ -30,9 +98,7 @@ router.post('/:id/log', async (req, res) => {
         .eq('user_id', req.userId)
         .maybeSingle()
 
-      if (!membership) {
-        return res.status(403).json({ message: 'Not a member of this group' })
-      }
+      if (!membership) return res.status(403).json({ message: 'Not a member of this group' })
     }
 
     // Check for existing log today
@@ -45,11 +111,9 @@ router.post('/:id/log', async (req, res) => {
       .eq('log_date', today)
       .maybeSingle()
 
-    if (existing) {
-      return res.status(400).json({ message: 'Already logged today' })
-    }
+    if (existing) return res.status(400).json({ message: 'Already logged today' })
 
-    // Status is set by trigger (self → self_completed, peer → pending)
+    // Status set by DB trigger: self → self_completed, peer → pending
     const { data: log, error } = await supabase
       .from('habit_logs')
       .insert({
@@ -95,7 +159,6 @@ router.post('/logs/:id/vote', async (req, res) => {
     if (log.user_id === req.userId) return res.status(400).json({ message: 'Cannot vote on your own log' })
     if (log.status !== 'pending') return res.status(400).json({ message: 'Log already resolved' })
 
-    // Verify voter is in the group
     if (log.group_id) {
       const { data: membership } = await supabase
         .from('group_members')

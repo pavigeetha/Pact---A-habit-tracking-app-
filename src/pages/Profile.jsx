@@ -1,7 +1,8 @@
 import { useState, useEffect } from 'react'
 import { useAuth } from '../context/AuthContext'
 import { api } from '../lib/api'
-import { User, Flame, TrendingUp, Trophy, Target, CheckCircle2, Award, Shield } from 'lucide-react'
+import { getUserLevel, USER_LEVELS } from '../lib/levels'
+import { Flame, TrendingUp, Trophy, Target, CheckCircle2, Gift, Lock, Star } from 'lucide-react'
 
 export default function Profile() {
   const { user } = useAuth()
@@ -11,9 +12,7 @@ export default function Profile() {
   const [groupCount, setGroupCount] = useState(0)
   const [loading, setLoading] = useState(true)
 
-  useEffect(() => {
-    if (user) loadProfile()
-  }, [user])
+  useEffect(() => { if (user) loadProfile() }, [user])
 
   async function loadProfile() {
     try {
@@ -23,113 +22,103 @@ export default function Profile() {
       setStreaks(data.streaks || [])
       setTotalLogs(data.totalLogs || 0)
       setGroupCount(data.groupCount || 0)
-    } catch { /* ignore */ }
-    finally { setLoading(false) }
+    } catch {} finally { setLoading(false) }
   }
 
-  function getLevel(rep) {
-    if (rep >= 500) return { name: 'Legend', color: 'text-amber-600 bg-amber-100', icon: Trophy }
-    if (rep >= 200) return { name: 'Veteran', color: 'text-violet-600 bg-violet-100', icon: Award }
-    if (rep >= 100) return { name: 'Committed', color: 'text-emerald-600 bg-emerald-100', icon: Shield }
-    if (rep >= 25) return { name: 'Rising', color: 'text-blue-600 bg-blue-100', icon: TrendingUp }
-    return { name: 'Newcomer', color: 'text-slate-600 bg-slate-100', icon: User }
-  }
+  if (loading || !profile) return <div className="flex items-center justify-center py-20"><div className="w-8 h-8 border-4 border-pact-200 border-t-pact-500 rounded-full animate-spin" /></div>
 
-  if (loading || !profile) {
-    return (
-      <div className="flex items-center justify-center py-20">
-        <div className="w-8 h-8 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
-      </div>
-    )
-  }
-
-  const level = getLevel(profile.reputation || 0)
-  const LevelIcon = level.icon
+  const level = getUserLevel(profile.reputation || 0)
 
   return (
     <div className="max-w-2xl mx-auto animate-fade-in space-y-6">
-      <div className="card text-center">
-        <div className="w-20 h-20 bg-violet-100 rounded-full flex items-center justify-center mx-auto mb-4">
-          <span className="text-3xl font-bold text-violet-600">{(profile.name || '?')[0].toUpperCase()}</span>
-        </div>
-        <h1 className="text-2xl font-bold text-slate-900">{profile.name}</h1>
-        <p className="text-slate-500 text-sm">{profile.email}</p>
-        <div className={`inline-flex items-center gap-1.5 mt-3 px-4 py-1.5 rounded-full text-sm font-semibold ${level.color}`}>
-          <LevelIcon className="w-4 h-4" /> {level.name}
+      {/* Profile Header */}
+      <div className="card-glow text-center relative overflow-hidden">
+        <div className="absolute inset-0 bg-gradient-to-br from-pact-100/50 via-transparent to-pink-100/50 pointer-events-none" />
+        <div className="relative">
+          <div className={`w-24 h-24 rounded-full flex items-center justify-center mx-auto mb-4 text-white text-3xl font-bold shadow-lg bg-gradient-to-br ${level.color}`}>
+            {(profile.name || '?')[0].toUpperCase()}
+          </div>
+          <h1 className="text-2xl font-bold text-slate-900">{profile.name}</h1>
+          <p className="text-slate-500 text-sm">{profile.email}</p>
+          <div className="mt-4 inline-flex flex-col items-center">
+            <div className={`inline-flex items-center gap-2 px-5 py-2 rounded-full text-sm font-bold ${level.bg} ${level.text} shadow-sm`}>
+              <span className="text-lg">{level.emoji}</span> Lv.{level.level} {level.name}
+            </div>
+            {level.nextLevel && (
+              <div className="mt-3 w-48">
+                <div className="flex justify-between text-[10px] text-slate-400 font-medium mb-1">
+                  <span>{profile.reputation} rep</span>
+                  <span>{level.nextLevel.minRep} to {level.nextLevel.name}</span>
+                </div>
+                <div className="h-2 bg-slate-100 rounded-full overflow-hidden">
+                  <div className={`h-full rounded-full bg-gradient-to-r ${level.color} transition-all duration-1000`} style={{ width: `${level.progress}%` }} />
+                </div>
+              </div>
+            )}
+          </div>
         </div>
       </div>
 
+      {/* Stats */}
       <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
         {[
-          { icon: Flame, label: 'Reputation', value: profile.reputation || 0, color: 'text-violet-600 bg-violet-100' },
+          { icon: Flame, label: 'Reputation', value: profile.reputation || 0, color: 'text-pact-600 bg-pact-100' },
           { icon: TrendingUp, label: 'Best Streak', value: streaks.length > 0 ? Math.max(...streaks.map(s => s.longestStreak)) : 0, color: 'text-emerald-600 bg-emerald-100' },
           { icon: CheckCircle2, label: 'Completions', value: totalLogs, color: 'text-blue-600 bg-blue-100' },
           { icon: Target, label: 'Groups', value: groupCount, color: 'text-amber-600 bg-amber-100' },
         ].map(({ icon: Icon, label, value, color }) => (
-          <div key={label} className="card text-center">
-            <div className={`w-10 h-10 rounded-xl flex items-center justify-center mx-auto mb-2 ${color}`}>
-              <Icon className="w-5 h-5" />
-            </div>
+          <div key={label} className="card-glow text-center">
+            <div className={`w-11 h-11 rounded-xl flex items-center justify-center mx-auto mb-2 ${color}`}><Icon className="w-5 h-5" /></div>
             <p className="text-2xl font-bold text-slate-900">{value}</p>
             <p className="text-xs text-slate-500">{label}</p>
           </div>
         ))}
       </div>
 
-      <div>
-        <h2 className="text-lg font-semibold text-slate-900 mb-3 flex items-center gap-2">
-          <Flame className="w-5 h-5 text-emerald-500" /> Active Streaks
-        </h2>
+      {/* Streaks */}
+      <div className="card-glow">
+        <h3 className="section-title"><Flame className="w-4 h-4" /> Active Streaks</h3>
         {streaks.filter(s => s.currentStreak > 0).length === 0 ? (
-          <div className="card text-center py-8">
-            <Flame className="w-10 h-10 text-slate-300 mx-auto mb-3" />
-            <p className="text-slate-500">No active streaks. Start checking in!</p>
-          </div>
+          <div className="text-center py-8"><div className="text-4xl mb-3">🔥</div><p className="text-slate-400">No active streaks. Start checking in!</p></div>
         ) : (
           <div className="space-y-2">
             {streaks.filter(s => s.currentStreak > 0).map(s => (
-              <div key={s.habit_id} className="card flex items-center gap-4">
-                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center">
-                  <Flame className="w-6 h-6 text-emerald-600" />
-                </div>
-                <div className="flex-1">
-                  <p className="font-medium text-slate-900">{s.title}</p>
-                  <p className="text-xs text-slate-500">{s.groupName}</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-lg font-bold text-emerald-600">{s.currentStreak}</p>
-                  <p className="text-xs text-slate-500">days</p>
-                </div>
-                <div className="text-right">
-                  <p className="text-sm font-semibold text-slate-400">{s.longestStreak}</p>
-                  <p className="text-xs text-slate-500">best</p>
-                </div>
+              <div key={s.habit_id} className="flex items-center gap-4 p-3 rounded-xl bg-gradient-to-r from-emerald-50 to-transparent border border-emerald-100">
+                <div className="w-12 h-12 bg-emerald-100 rounded-xl flex items-center justify-center"><Flame className="w-6 h-6 text-emerald-500" /></div>
+                <div className="flex-1"><p className="font-semibold text-slate-900 text-sm">{s.title}</p><p className="text-xs text-slate-400">{s.groupName}</p></div>
+                <div className="text-right"><p className="text-xl font-bold text-emerald-600">{s.currentStreak}</p><p className="text-[10px] text-slate-400">days</p></div>
+                <div className="text-right"><p className="text-sm font-semibold text-slate-300">{s.longestStreak}</p><p className="text-[10px] text-slate-400">best</p></div>
               </div>
             ))}
           </div>
         )}
       </div>
 
-      <div className="card">
-        <h3 className="font-semibold text-slate-900 mb-4">Reputation Levels</h3>
+      {/* Levels & Rewards */}
+      <div className="card-glow">
+        <h3 className="section-title"><Gift className="w-4 h-4" /> Levels & Rewards</h3>
         <div className="space-y-3">
-          {[
-            { name: 'Newcomer', min: 0, max: 24, color: 'bg-slate-400' },
-            { name: 'Rising', min: 25, max: 99, color: 'bg-blue-500' },
-            { name: 'Committed', min: 100, max: 199, color: 'bg-emerald-500' },
-            { name: 'Veteran', min: 200, max: 499, color: 'bg-violet-500' },
-            { name: 'Legend', min: 500, max: 999, color: 'bg-amber-500' },
-          ].map(lvl => {
+          {USER_LEVELS.map((lvl) => {
             const rep = profile.reputation || 0
-            const progress = rep >= lvl.max ? 100 : rep >= lvl.min ? ((rep - lvl.min) / (lvl.max - lvl.min)) * 100 : 0
-            const isActive = rep >= lvl.min && rep <= lvl.max
+            const isUnlocked = rep >= lvl.minRep
+            const isCurrent = lvl.level === level.level
             return (
-              <div key={lvl.name} className={`flex items-center gap-3 ${isActive ? '' : 'opacity-50'}`}>
-                <span className={`text-xs font-medium w-20 ${isActive ? 'text-slate-900' : 'text-slate-500'}`}>{lvl.name}</span>
-                <div className="flex-1 h-2.5 bg-slate-100 rounded-full overflow-hidden">
-                  <div className={`h-full rounded-full transition-all duration-500 ${lvl.color}`} style={{ width: `${progress}%` }} />
+              <div key={lvl.level} className={`flex items-center gap-4 p-3 rounded-xl transition-all ${
+                isCurrent ? 'bg-gradient-to-r from-pact-50 to-amber-50 border border-pact-200 shadow-sm' :
+                isUnlocked ? 'bg-slate-50' : 'opacity-40'
+              }`}>
+                <div className={`w-11 h-11 rounded-xl flex items-center justify-center text-lg shrink-0 ${isUnlocked ? lvl.bg : 'bg-slate-100'}`}>
+                  {isUnlocked ? lvl.emoji : <Lock className="w-4 h-4 text-slate-400" />}
                 </div>
-                <span className="text-xs text-slate-500 w-8 text-right">{lvl.max}</span>
+                <div className="flex-1">
+                  <p className="font-semibold text-sm flex items-center gap-2">
+                    <span className={isUnlocked ? 'text-slate-900' : 'text-slate-400'}>Lv.{lvl.level} {lvl.name}</span>
+                    {isCurrent && <span className="text-[10px] bg-pact-500 text-white px-2 py-0.5 rounded-full font-bold">CURRENT</span>}
+                    {isUnlocked && !isCurrent && <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />}
+                  </p>
+                  <p className="text-xs text-slate-400 mt-0.5 flex items-center gap-1"><Star className="w-3 h-3" /> {lvl.reward}</p>
+                </div>
+                <span className="text-xs text-slate-400 font-medium">{lvl.minRep}+ rep</span>
               </div>
             )
           })}

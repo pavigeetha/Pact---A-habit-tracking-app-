@@ -10,10 +10,13 @@ import Group from './pages/Group'
 import CreateGroup from './pages/CreateGroup'
 import JoinGroup from './pages/JoinGroup'
 import Profile from './pages/Profile'
+import Clubs from './pages/Clubs'
+import ClubDetail from './pages/ClubDetail'
+import Settings from './pages/Settings'
 
 function AppLayout() {
   return (
-    <div className="min-h-screen bg-slate-50">
+    <div className="min-h-screen bg-pact-50">
       <Navbar />
       <main className="max-w-6xl mx-auto px-4 py-6">
         <ProtectedRoute />
@@ -27,9 +30,9 @@ export default function App() {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-slate-50">
+      <div className="min-h-screen flex items-center justify-center bg-pact-50">
         <div className="flex flex-col items-center gap-3">
-          <div className="w-10 h-10 border-4 border-violet-200 border-t-violet-600 rounded-full animate-spin" />
+          <div className="w-10 h-10 border-4 border-pact-200 border-t-pact-500 rounded-full animate-spin" />
           <p className="text-slate-500 text-sm font-medium">Loading...</p>
         </div>
       </div>
@@ -48,6 +51,9 @@ export default function App() {
         <Route path="/join" element={<JoinGroup />} />
         <Route path="/join/:code" element={<JoinGroup />} />
         <Route path="/profile" element={<Profile />} />
+        <Route path="/clubs" element={<Clubs />} />
+        <Route path="/clubs/:id" element={<ClubDetail />} />
+        <Route path="/settings" element={<Settings />} />
       </Route>
       <Route path="*" element={<Navigate to="/" />} />
     </Routes>

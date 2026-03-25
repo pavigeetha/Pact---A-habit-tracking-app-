@@ -1,8 +1,6 @@
+import 'dotenv/config'
 import express from 'express'
 import cors from 'cors'
-import dotenv from 'dotenv'
-
-dotenv.config()
 
 import authRoutes from './routes/auth.js'
 import dashboardRoutes from './routes/dashboard.js'
@@ -10,6 +8,8 @@ import groupRoutes from './routes/groups.js'
 import habitRoutes from './routes/habits.js'
 import profileRoutes from './routes/profile.js'
 import notificationRoutes from './routes/notifications.js'
+import leaderboardRoutes from './routes/leaderboard.js'
+import clubRoutes from './routes/clubs.js'
 
 const app = express()
 
@@ -22,6 +22,8 @@ app.use('/api/groups', groupRoutes)
 app.use('/api/habits', habitRoutes)
 app.use('/api/profile', profileRoutes)
 app.use('/api/notifications', notificationRoutes)
+app.use('/api/leaderboard', leaderboardRoutes)
+app.use('/api/clubs', clubRoutes)
 
 app.get('/api/health', (req, res) => {
   res.json({ status: 'ok', timestamp: new Date().toISOString() })

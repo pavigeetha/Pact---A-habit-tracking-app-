@@ -1,4 +1,4 @@
-const API_URL = import.meta.env.VITE_API_URL || `http://${window.location.hostname}:3001/api`
+const API_URL = import.meta.env.VITE_API_URL || '/api'
 
 function getToken() {
   return localStorage.getItem('pact_token')
@@ -20,7 +20,6 @@ async function apiFetch(path, options = {}) {
     },
     body: options.body ? JSON.stringify(options.body) : undefined,
   })
-
   const data = await res.json().catch(() => ({}))
   if (!res.ok) throw new Error(data.message || 'Request failed')
   return data
@@ -40,8 +39,27 @@ export const api = {
     join: (code) => apiFetch('/groups/join', { method: 'POST', body: { code } }),
   },
   habits: {
+    create: (body) => apiFetch('/habits', { method: 'POST', body }),
+    addToGroup: (groupId, body) => apiFetch(`/habits/group/${groupId}`, { method: 'POST', body }),
     log: (habitId, body) => apiFetch(`/habits/${habitId}/log`, { method: 'POST', body }),
     vote: (logId, decision) => apiFetch(`/habits/logs/${logId}/vote`, { method: 'POST', body: { decision } }),
+  },
+  clubs: {
+    list: (params) => apiFetch(`/clubs${params ? '?' + new URLSearchParams(params) : ''}`),
+    get: (id) => apiFetch(`/clubs/${id}`),
+    create: (body) => apiFetch('/clubs', { method: 'POST', body }),
+    join: (id) => apiFetch(`/clubs/${id}/join`, { method: 'POST' }),
+    leave: (id) => apiFetch(`/clubs/${id}/leave`, { method: 'DELETE' }),
+    createChallenge: (id, body) => apiFetch(`/clubs/${id}/challenges`, { method: 'POST', body }),
+    joinChallenge: (challengeId) => apiFetch(`/clubs/challenges/${challengeId}/join`, { method: 'POST' }),
+    completeChallenge: (challengeId) => apiFetch(`/clubs/challenges/${challengeId}/complete`, { method: 'PUT' }),
+  },
+  ai: {
+    ask: (clubId, message) => apiFetch(`/ai/clubs/${clubId}/ask`, { method: 'POST', body: { message } }),
+    suggestions: (clubId) => apiFetch(`/ai/clubs/${clubId}/suggestions`),
+  },
+  leaderboard: {
+    groups: () => apiFetch('/leaderboard/groups'),
   },
   profile: () => apiFetch('/profile'),
   notifications: {

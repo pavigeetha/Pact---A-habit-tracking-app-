@@ -9,7 +9,7 @@ const features = [
     icon: Users,
     title: 'Habit Rooms',
     desc: 'Create shared spaces where your group commits to habits together. No more tracking alone.',
-    color: 'bg-violet-100 text-violet-600',
+    color: 'bg-pact-100 text-pact-500',
   },
   {
     icon: Shield,
@@ -49,10 +49,10 @@ export default function Landing() {
   return (
     <div className="min-h-screen">
       {/* Hero */}
-      <section className="relative overflow-hidden bg-gradient-to-br from-violet-600 via-violet-700 to-purple-800">
+      <section className="relative overflow-hidden bg-gradient-to-br from-pact-400 via-pact-500 to-pact-700">
         <div className="absolute inset-0 opacity-10">
           <div className="absolute top-20 left-10 w-72 h-72 bg-white rounded-full blur-3xl" />
-          <div className="absolute bottom-20 right-10 w-96 h-96 bg-violet-300 rounded-full blur-3xl" />
+          <div className="absolute bottom-20 right-10 w-96 h-96 bg-pact-300 rounded-full blur-3xl" />
         </div>
 
         <nav className="relative max-w-6xl mx-auto px-6 py-5 flex items-center justify-between">
@@ -66,23 +66,23 @@ export default function Landing() {
             <Link to="/login" className="px-4 py-2 text-sm font-medium text-white/90 hover:text-white transition-colors">
               Log In
             </Link>
-            <Link to="/register" className="px-4 py-2 text-sm font-semibold bg-white text-violet-700 rounded-xl hover:bg-violet-50 transition-colors">
+            <Link to="/register" className="px-4 py-2 text-sm font-semibold bg-white text-pact-600 rounded-xl hover:bg-pact-50 transition-colors">
               Get Started
             </Link>
           </div>
         </nav>
 
         <div className="relative max-w-4xl mx-auto px-6 pt-16 pb-24 text-center">
-          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur rounded-full text-violet-100 text-sm font-medium mb-8">
+          <div className="inline-flex items-center gap-2 px-4 py-1.5 bg-white/10 backdrop-blur rounded-full text-pact-100 text-sm font-medium mb-8">
             <Flame className="w-4 h-4" />
             Social accountability that actually works
           </div>
           <h1 className="text-5xl md:text-6xl font-bold text-white leading-tight mb-6">
             Turn Your Habits Into
             <br />
-            <span className="text-violet-200">Social Commitments</span>
+            <span className="text-pact-200">Social Commitments</span>
           </h1>
-          <p className="text-lg text-violet-100 max-w-2xl mx-auto mb-10 leading-relaxed">
+          <p className="text-lg text-pact-100 max-w-2xl mx-auto mb-10 leading-relaxed">
             Pact transforms habit tracking from a private, forgettable task into a shared social
             experience. Form groups, validate each other, and build habits that stick through
             real accountability.
@@ -90,7 +90,7 @@ export default function Landing() {
           <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
             <Link
               to="/register"
-              className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-violet-700 font-semibold rounded-xl hover:bg-violet-50 transition-all hover:shadow-lg text-base"
+              className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-pact-600 font-semibold rounded-xl hover:bg-pact-50 transition-all hover:shadow-lg text-base"
             >
               Start Your Pact
               <ArrowRight className="w-5 h-5" />
@@ -108,7 +108,7 @@ export default function Landing() {
       {/* Problem Statement */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-3">The Problem</p>
+          <p className="text-sm font-semibold text-pact-500 uppercase tracking-wider mb-3">The Problem</p>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
             Why Habit Apps Keep Failing You
           </h2>
@@ -138,7 +138,7 @@ export default function Landing() {
       <section className="bg-white border-y border-slate-200">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-3">Features</p>
+            <p className="text-sm font-semibold text-pact-500 uppercase tracking-wider mb-3">Features</p>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900 mb-4">
               Built for Real Accountability
             </h2>
@@ -162,14 +162,14 @@ export default function Landing() {
       {/* How it Works */}
       <section className="max-w-6xl mx-auto px-6 py-20">
         <div className="text-center mb-12">
-          <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-3">How It Works</p>
+          <p className="text-sm font-semibold text-pact-500 uppercase tracking-wider mb-3">How It Works</p>
           <h2 className="text-3xl md:text-4xl font-bold text-slate-900">Four Steps to Better Habits</h2>
         </div>
         <div className="grid md:grid-cols-4 gap-6">
           {howItWorks.map(({ step, title, desc }) => (
             <div key={step} className="text-center">
-              <div className="w-14 h-14 bg-violet-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
-                <span className="text-violet-600 font-bold text-lg">{step}</span>
+              <div className="w-14 h-14 bg-pact-100 rounded-2xl flex items-center justify-center mx-auto mb-4">
+                <span className="text-pact-500 font-bold text-lg">{step}</span>
               </div>
               <h3 className="font-semibold text-slate-900 mb-2">{title}</h3>
               <p className="text-sm text-slate-600">{desc}</p>
@@ -179,10 +179,10 @@ export default function Landing() {
       </section>
 
       {/* Psychology */}
-      <section className="bg-violet-50 border-y border-violet-100">
+      <section className="bg-pact-50 border-y border-pact-100">
         <div className="max-w-6xl mx-auto px-6 py-20">
           <div className="text-center mb-12">
-            <p className="text-sm font-semibold text-violet-600 uppercase tracking-wider mb-3">Science-Backed</p>
+            <p className="text-sm font-semibold text-pact-500 uppercase tracking-wider mb-3">Science-Backed</p>
             <h2 className="text-3xl md:text-4xl font-bold text-slate-900">
               Grounded in Behavioral Psychology
             </h2>
@@ -190,7 +190,7 @@ export default function Landing() {
           <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-6">
             {psychology.map(({ icon: Icon, title, desc }) => (
               <div key={title} className="card bg-white">
-                <Icon className="w-8 h-8 text-violet-500 mb-3" />
+                <Icon className="w-8 h-8 text-pact-500 mb-3" />
                 <h3 className="font-semibold text-slate-900 mb-1 text-sm">{title}</h3>
                 <p className="text-xs text-slate-600 leading-relaxed">{desc}</p>
               </div>
@@ -200,17 +200,17 @@ export default function Landing() {
       </section>
 
       {/* CTA */}
-      <section className="bg-gradient-to-br from-violet-600 to-purple-700">
+      <section className="bg-gradient-to-br from-pact-500 to-pact-700">
         <div className="max-w-3xl mx-auto px-6 py-20 text-center">
           <h2 className="text-3xl md:text-4xl font-bold text-white mb-4">
             Ready to Make a Pact?
           </h2>
-          <p className="text-violet-100 text-lg mb-8 max-w-xl mx-auto">
+          <p className="text-pact-100 text-lg mb-8 max-w-xl mx-auto">
             Join a community where habits are shared commitments, not private checkboxes.
           </p>
           <Link
             to="/register"
-            className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-violet-700 font-semibold rounded-xl hover:bg-violet-50 transition-all hover:shadow-lg text-base"
+            className="inline-flex items-center gap-2 px-8 py-3.5 bg-white text-pact-600 font-semibold rounded-xl hover:bg-pact-50 transition-all hover:shadow-lg text-base"
           >
             Get Started Free
             <ArrowRight className="w-5 h-5" />
@@ -222,7 +222,7 @@ export default function Landing() {
       <footer className="bg-slate-900 text-slate-400 py-8">
         <div className="max-w-6xl mx-auto px-6 flex flex-col md:flex-row items-center justify-between gap-4">
           <div className="flex items-center gap-2">
-            <Flame className="w-5 h-5 text-violet-400" />
+            <Flame className="w-5 h-5 text-pact-400" />
             <span className="font-semibold text-white">Pact</span>
           </div>
           <p className="text-sm">Social accountability for habits that stick.</p>
