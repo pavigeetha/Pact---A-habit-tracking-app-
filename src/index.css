@@ -2448,3 +2448,248 @@ button {
 [data-theme="midnight"] .group-code-display {
   border-color: #7C3AED;
 }
+
+/* ============================================
+   GAME BASE — Professional Fortress/City
+   ============================================ */
+
+.theme-cottage {
+  --base-ground: #86EFAC;
+  --base-wall: #D4A574;
+  --base-wall-top: #8B6914;
+  --base-tower: #C4956A;
+  --base-keep: #B8845A;
+  --base-roof: #8B3A3A;
+  --base-window: #FBBF24;
+  --base-gate: #4A2810;
+  --base-gate-bar: #2A1A08;
+}
+
+.theme-midnight {
+  --base-ground: #0F172A;
+  --base-wall: #1E293B;
+  --base-wall-top: #334155;
+  --base-tower: #334155;
+  --base-keep: #1E293B;
+  --base-roof: #475569;
+  --base-window: #0F172A;
+  --base-gate: #0F172A;
+  --base-gate-bar: #1E293B;
+  --neon-accent: #22D3EE;
+  --neon-secondary: #C084FC;
+}
+
+.game-base {
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  background: var(--bg-card);
+  border: 1px solid var(--border-default);
+  box-shadow: var(--shadow-sm);
+}
+
+.game-base-visual {
+  width: 100%;
+  background: linear-gradient(180deg, #E0F2FE 0%, #FBCFE8 40%, #FFF1E6 100%);
+  padding: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+.theme-midnight .game-base-visual {
+  background: linear-gradient(180deg, #0F172A 0%, #1E293B 60%, #334155 100%);
+}
+
+.base-fortress-svg {
+  width: 100%;
+}
+
+.wall-main {
+  filter: drop-shadow(0 2px 4px rgba(0,0,0,0.15));
+}
+
+.window-glow {
+  animation: svgWindowPulse 4s ease-in-out infinite;
+}
+.window-glow.delay-1 { animation-delay: 1s; }
+.window-glow.delay-2 { animation-delay: 2s; }
+.window-glow.delay-3 { animation-delay: 3s; }
+
+@keyframes svgWindowPulse {
+  0%, 100% { opacity: 0.9; }
+  50% { opacity: 0.4; }
+}
+
+.flag-wave {
+  animation: svgFlagWave 2s ease-in-out infinite;
+  transform-origin: left center;
+}
+@keyframes svgFlagWave {
+  0%, 100% { transform: scaleX(1); }
+  25% { transform: scaleX(0.85) skewY(-2deg); }
+  75% { transform: scaleX(1.05) skewY(1deg); }
+}
+
+.tower-roof-left, .tower-roof-right, .keep-roof {
+  filter: drop-shadow(0 1px 2px rgba(0,0,0,0.2));
+}
+
+.pulse-glow {
+  animation: svgPulseGlow 2s ease-in-out infinite;
+}
+@keyframes svgPulseGlow {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.5; }
+}
+
+.neon-line {
+  opacity: 0.6;
+  animation: svgNeonFlicker 3s ease-in-out infinite;
+}
+.neon-pulse {
+  animation: svgNeonPulse 2s ease-in-out infinite;
+}
+.neon-pulse.delay-1 { animation-delay: 0.5s; }
+.neon-pulse.delay-2 { animation-delay: 1s; }
+.neon-pulse.delay-3 { animation-delay: 1.5s; }
+
+@keyframes svgNeonPulse {
+  0%, 100% { opacity: 1; }
+  50% { opacity: 0.3; }
+}
+@keyframes svgNeonFlicker {
+  0%, 90%, 100% { opacity: 0.6; }
+  92% { opacity: 0.1; }
+  94% { opacity: 0.8; }
+  96% { opacity: 0.2; }
+}
+
+.cyber-building {
+  filter: drop-shadow(0 0 8px rgba(34, 211, 238, 0.1));
+}
+.cyber-dome { opacity: 0.7; }
+.cyber-window.window-active {
+  animation: svgCyberBlink 5s ease-in-out infinite;
+}
+@keyframes svgCyberBlink {
+  0%, 85%, 100% { opacity: 0.9; }
+  87% { opacity: 0.2; }
+  89% { opacity: 0.9; }
+  91% { opacity: 0.3; }
+}
+
+.gate-scan {
+  animation: svgGateScan 3s ease-in-out infinite;
+}
+@keyframes svgGateScan {
+  0%, 100% { opacity: 0.15; }
+  50% { opacity: 0.4; }
+}
+
+.game-base-stats {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 16px;
+  flex-wrap: wrap;
+  border-top: 1px solid var(--border-default);
+  background: var(--bg-card);
+}
+
+.base-stat-item {
+  display: flex;
+  align-items: center;
+  gap: 4px;
+  font-size: 0.78rem;
+  font-weight: 600;
+  color: var(--text-secondary);
+}
+
+.base-stat-label {
+  font-weight: 800;
+  font-size: 0.82rem;
+  color: var(--text-primary);
+}
+
+.base-stat-value {
+  font-family: var(--font-display);
+  font-weight: 800;
+}
+
+.shield-badge-stat {
+  background: rgba(167, 139, 250, 0.1);
+  padding: 2px 8px;
+  border-radius: var(--radius-full);
+  border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+/* ── Attack Animation ── */
+.base-under-attack {
+  animation: baseShake 0.15s ease-in-out 6;
+}
+@keyframes baseShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px) rotate(-0.5deg); }
+  75% { transform: translateX(6px) rotate(0.5deg); }
+}
+
+.attack-flash-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: attackFlashAnim 1.5s ease-out forwards;
+  pointer-events: none;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+@keyframes attackFlashAnim {
+  0% { background: rgba(239, 68, 68, 0.5); }
+  30% { background: rgba(239, 68, 68, 0.25); }
+  100% { background: transparent; }
+}
+
+.attack-flash-text {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.8), 0 2px 6px rgba(0,0,0,0.5);
+  animation: attackTextPulse 0.4s ease-in-out 3;
+  letter-spacing: 2px;
+}
+@keyframes attackTextPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+.game-base {
+  position: relative;
+}
+
+/* ── Badge Yellow ── */
+.badge-yellow {
+  background: rgba(250, 204, 21, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(250, 204, 21, 0.25);
+}
+[data-theme="midnight"] .badge-yellow {
+  color: #fbbf24;
+}
+
+/* ── Group Point Badges ── */
+.group-point-badge {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+  padding: 4px 10px;
+  border-radius: var(--radius-full);
+  background: rgba(255,255,255,0.5);
+  border: 1px solid var(--border-default);
+  font-size: 0.8rem;
+  color: var(--text-primary);
+}
+[data-theme="midnight"] .group-point-badge {
+  background: rgba(30, 41, 59, 0.5);
+}
