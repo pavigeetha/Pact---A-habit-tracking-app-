@@ -1,124 +1,149 @@
 import { useCurrentTeam } from '../context/GameContext';
+import { useTheme } from '../context/ThemeContext';
 
 export default function AnimatedBase() {
   const team = useCurrentTeam();
+  const { themeId } = useTheme();
   if (!team) return null;
 
   const hp = team.hp;
   const hpPercent = (hp / team.maxHp) * 100;
-
-  // Base state changes with HP
   const isHealthy = hpPercent > 60;
   const isWarning = hpPercent > 30 && hpPercent <= 60;
   const isCritical = hpPercent <= 30;
+  const isCottage = themeId === 'cottagecore';
 
   return (
-    <div className="base-scene" id="animated-base">
+    <div className={`base-scene ${isCritical ? 'base-damaged' : ''}`} id="animated-base">
       {/* Sky */}
-      <div className="base-sky">
-        {/* Stars / particles */}
-        <div className="base-particle p1" />
-        <div className="base-particle p2" />
-        <div className="base-particle p3" />
-        <div className="base-particle p4" />
-        <div className="base-particle p5" />
-        <div className="base-particle p6" />
-        <div className="base-particle p7" />
-        <div className="base-particle p8" />
-
-        {/* Floating clouds */}
-        <div className="base-cloud cloud-1">☁️</div>
-        <div className="base-cloud cloud-2">☁️</div>
-      </div>
-
-      {/* Ground */}
-      <div className="base-ground">
-        {/* Walls */}
-        <div className={`base-wall wall-left ${isCritical ? 'wall-damaged' : ''}`}>
-          <span className="wall-block">🧱</span>
-          <span className="wall-block">🧱</span>
-          {!isCritical && <span className="wall-block">🧱</span>}
-        </div>
-        <div className={`base-wall wall-right ${isCritical ? 'wall-damaged' : ''}`}>
-          <span className="wall-block">🧱</span>
-          <span className="wall-block">🧱</span>
-          {!isCritical && <span className="wall-block">🧱</span>}
-        </div>
-
-        {/* Main Castle / Tower */}
-        <div className={`base-castle ${isCritical ? 'castle-critical' : isWarning ? 'castle-warning' : 'castle-healthy'}`}>
-          <div className="castle-tower">
-            <div className="castle-flag">
-              {isHealthy ? '🏴' : isCritical ? '🏳️' : '🚩'}
-            </div>
-            <div className="castle-roof" />
-            <div className="castle-body">
-              <div className="castle-window">🪟</div>
-              <div className="castle-door">🚪</div>
-            </div>
-          </div>
-          {/* Castle glow based on health */}
-          <div className={`castle-glow ${isHealthy ? 'glow-green' : isWarning ? 'glow-yellow' : 'glow-red'}`} />
-        </div>
-
-        {/* Shield Dome (visible when shield active) */}
-        {team.shieldActive && (
-          <div className="shield-dome">
-            <div className="shield-dome-inner" />
-          </div>
-        )}
-
-        {/* Trees */}
-        <div className="base-tree tree-1">{isHealthy ? '🌲' : '🌵'}</div>
-        <div className="base-tree tree-2">{isHealthy ? '🌳' : isCritical ? '💀' : '🌾'}</div>
-        <div className="base-tree tree-3">{isHealthy ? '🌲' : '🌵'}</div>
-
-        {/* Animated Characters */}
-        <div className="base-character char-warrior" title="Warrior">
-          <span className="char-emoji">⚔️</span>
-          <span className="char-body">🧑‍💻</span>
-        </div>
-
-        <div className="base-character char-builder" title="Builder">
-          <span className="char-emoji">🔨</span>
-          <span className="char-body">👷</span>
-        </div>
-
-        <div className="base-character char-mage" title="Mage">
-          <span className="char-emoji">✨</span>
-          <span className="char-body">🧙</span>
-        </div>
-
-        <div className="base-character char-archer" title="Archer">
-          <span className="char-emoji">🏹</span>
-          <span className="char-body">🧝</span>
-        </div>
-
-        {/* Campfire */}
-        <div className="base-campfire">
-          <span className="campfire-flame">🔥</span>
-        </div>
-
-        {/* Gold pile */}
-        {isHealthy && (
-          <div className="base-gold">
-            <span>💰</span>
-          </div>
-        )}
-
-        {/* Damage effects when critical */}
-        {isCritical && (
+      <div className={`base-sky ${isCottage ? 'sky-cottage' : 'sky-midnight'}`}>
+        {isCottage ? (
           <>
-            <div className="damage-crack crack-1">💥</div>
-            <div className="damage-crack crack-2">💥</div>
-            <div className="base-smoke smoke-1">💨</div>
+            <div className="sky-cloud cloud-1" />
+            <div className="sky-cloud cloud-2" />
+            <div className="sky-sun" />
+          </>
+        ) : (
+          <>
+            <div className="sky-star star-1" />
+            <div className="sky-star star-2" />
+            <div className="sky-star star-3" />
+            <div className="sky-star star-4" />
+            <div className="sky-star star-5" />
+            <div className="sky-moon" />
           </>
         )}
       </div>
 
-      {/* HP overlay */}
+      {/* Ground */}
+      <div className={`base-ground ${isCottage ? 'ground-cottage' : 'ground-midnight'}`} />
+
+      {/* Castle / City */}
+      {isCottage ? (
+        <div className="cottage-castle">
+          {/* Left tree */}
+          <div className="castle-tree tree-left">
+            <div className="tree-crown" />
+            <div className="tree-trunk" />
+            <div className="tree-petals">
+              <span className="t-petal tp-1" />
+              <span className="t-petal tp-2" />
+              <span className="t-petal tp-3" />
+            </div>
+          </div>
+
+          {/* Castle Structure */}
+          <div className="castle-body">
+            <div className="castle-tower tower-left">
+              <div className="tower-roof" />
+              <div className="tower-wall">
+                <div className="tower-window" />
+              </div>
+            </div>
+            <div className="castle-main">
+              <div className="castle-roof">
+                <div className="castle-flag">
+                  <div className="flag-pole" />
+                  <div className={`flag-cloth ${isHealthy ? 'flag-green' : isWarning ? 'flag-yellow' : 'flag-red'}`} />
+                </div>
+              </div>
+              <div className="castle-wall">
+                <div className="castle-door" />
+                <div className="castle-window cw-1" />
+                <div className="castle-window cw-2" />
+              </div>
+            </div>
+            <div className="castle-tower tower-right">
+              <div className="tower-roof" />
+              <div className="tower-wall">
+                <div className="tower-window" />
+              </div>
+            </div>
+          </div>
+
+          {/* Right tree */}
+          <div className="castle-tree tree-right">
+            <div className="tree-crown" />
+            <div className="tree-trunk" />
+          </div>
+
+          {/* Characters */}
+          <div className="castle-char char-warrior">⚔️</div>
+          <div className="castle-char char-mage">🧙</div>
+          <div className="castle-char char-builder">🔨</div>
+        </div>
+      ) : (
+        <div className="midnight-city">
+          <div className="city-building b-1">
+            <div className="building-windows">
+              <span className="bw" /><span className="bw lit" /><span className="bw" />
+              <span className="bw lit" /><span className="bw" /><span className="bw lit" />
+              <span className="bw" /><span className="bw lit" /><span className="bw" />
+            </div>
+          </div>
+          <div className="city-building b-2">
+            <div className="building-windows">
+              <span className="bw lit" /><span className="bw" />
+              <span className="bw" /><span className="bw lit" />
+              <span className="bw lit" /><span className="bw" />
+            </div>
+          </div>
+          <div className="city-building b-3">
+            <div className="building-windows">
+              <span className="bw" /><span className="bw lit" /><span className="bw lit" />
+              <span className="bw lit" /><span className="bw" /><span className="bw" />
+              <span className="bw" /><span className="bw" /><span className="bw lit" />
+              <span className="bw lit" /><span className="bw" /><span className="bw lit" />
+            </div>
+            <div className="building-antenna" />
+          </div>
+          <div className="city-building b-4">
+            <div className="building-windows">
+              <span className="bw lit" /><span className="bw" />
+              <span className="bw" /><span className="bw lit" />
+            </div>
+          </div>
+          <div className="city-building b-5">
+            <div className="building-windows">
+              <span className="bw" /><span className="bw lit" /><span className="bw" />
+              <span className="bw lit" /><span className="bw lit" /><span className="bw" />
+              <span className="bw" /><span className="bw" /><span className="bw lit" />
+            </div>
+          </div>
+
+          {/* Neon signs */}
+          <div className="neon-sign ns-1">PACT</div>
+          <div className="neon-sign ns-2">⚡</div>
+
+          {/* Characters */}
+          <div className="city-char cc-1">🚶</div>
+          <div className="city-char cc-2">🏃</div>
+        </div>
+      )}
+
+      {/* HP Badge */}
       <div className="base-hp-overlay">
-        <span className="base-hp-icon">🏰</span>
+        <span className="base-hp-icon">{isCottage ? '🏰' : '🏙️'}</span>
         <span className={`base-hp-value ${isHealthy ? 'healthy' : isWarning ? 'warning' : 'critical'}`}>
           {hp} HP
         </span>

@@ -1,8 +1,12 @@
 import { useState } from 'react';
-import { GameProvider } from './context/GameContext';
+import { GameProvider, useGameState } from './context/GameContext';
+import { ThemeProvider } from './context/ThemeContext';
+import LoginPage from './components/LoginPage';
+import GroupSetup from './components/GroupSetup';
 import BaseHealth from './components/BaseHealth';
 import AnimatedBase from './components/AnimatedBase';
-import FloatingCharacters from './components/FloatingCharacters';
+import CherryBlossomPetals from './components/FloatingCharacters';
+import FloatingRewards from './components/FloatingRewards';
 import HabitList from './components/HabitList';
 import TeamDashboard from './components/TeamDashboard';
 import Leaderboard from './components/Leaderboard';
@@ -15,11 +19,13 @@ import MobileNav from './components/MobileNav';
 import ClubBrowser from './components/ClubBrowser';
 import ClubDashboard from './components/ClubDashboard';
 import ProfilePage from './components/ProfilePage';
-import { Bell, Home, Landmark, User } from 'lucide-react';
+import SettingsPage from './components/SettingsPage';
+import { Bell, Home, Landmark, User, Settings, Loader } from 'lucide-react';
 
 function AppContent() {
   const [activeView, setActiveView] = useState('dashboard');
   const [selectedClubId, setSelectedClubId] = useState(null);
+  const { session, loading, hasGroup, profile } = useGameState();
 
   const handleOpenClub = (clubId) => {
     setSelectedClubId(clubId);
@@ -33,13 +39,56 @@ function AppContent() {
     window.scrollTo({ top: 0, behavior: 'smooth' });
   };
 
+  // Loading spinner
+  if (loading) {
+    return (
+      <div className="login-page">
+        <CherryBlossomPetals />
+        <div style={{ textAlign: 'center' }}>
+          <div className="login-logo" style={{ fontSize: '4rem' }}>🌸</div>
+          <Loader size={32} className="spin-icon" style={{ color: 'var(--accent-pink)', marginTop: 16 }} />
+          <p style={{ marginTop: 12, color: 'var(--text-secondary)' }}>Loading your adventure...</p>
+        </div>
+      </div>
+    );
+  }
+
+  // Show login if not logged in
+  if (!session) {
+    return (
+      <>
+        <CherryBlossomPetals />
+        <LoginPage />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  // Show group setup if no group
+  if (!hasGroup) {
+    return (
+      <>
+        <CherryBlossomPetals />
+        <GroupSetup />
+        <ToastContainer />
+      </>
+    );
+  }
+
+  const avatarInitials = profile?.display_name
+    ? profile.display_name.slice(0, 2).toUpperCase()
+    : 'ME';
+
   return (
     <>
-      {/* ── Header ── */}
+      <CherryBlossomPetals />
+      <FloatingRewards />
+
+      {/* Header */}
       <header className="app-header">
         <div className="flex items-center gap-16">
           <div className="app-logo" style={{ cursor: 'pointer' }} onClick={() => setActiveView('dashboard')}>
-            ⚔️ PACT
+            🌸 PACT
           </div>
 
           <div className="nav-tabs">
@@ -67,6 +116,14 @@ function AppContent() {
               <User size={14} />
               Profile
             </button>
+            <button
+              className={`nav-tab ${activeView === 'settings' ? 'active' : ''}`}
+              onClick={() => setActiveView('settings')}
+              id="nav-tab-settings"
+            >
+              <Settings size={14} />
+              Settings
+            </button>
           </div>
         </div>
 
@@ -79,39 +136,37 @@ function AppContent() {
               width: 36,
               height: 36,
               borderRadius: 'var(--radius-full)',
-              background: 'linear-gradient(135deg, var(--accent-purple), var(--accent-green))',
+              background: 'linear-gradient(135deg, var(--accent-pink), var(--accent-purple))',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
               fontWeight: 700,
               fontSize: '0.85rem',
               cursor: 'pointer',
+              color: '#fff',
             }}
             onClick={() => setActiveView('profile')}
           >
-            AR
+            {avatarInitials}
           </div>
         </div>
       </header>
 
-      {/* ── Views ── */}
+      {/* Views */}
       {activeView === 'dashboard' && (
-        <>
-          <FloatingCharacters />
-          <main className="dashboard">
-            <BaseHealth />
-            <HabitList />
-            <div className="span-3">
-              <AnimatedBase />
-            </div>
-            <TeamDashboard />
-            <Leaderboard />
-            <AttackPanel />
-            <PerformanceStats />
-            <ActivityChart />
-            <InsightsPanel />
-          </main>
-        </>
+        <main className="dashboard">
+          <BaseHealth />
+          <HabitList />
+          <div className="span-3">
+            <AnimatedBase />
+          </div>
+          <TeamDashboard />
+          <Leaderboard />
+          <AttackPanel />
+          <PerformanceStats />
+          <ActivityChart />
+          <InsightsPanel />
+        </main>
       )}
 
       {activeView === 'clubs' && (
@@ -126,6 +181,10 @@ function AppContent() {
         <ProfilePage onBack={() => setActiveView('dashboard')} />
       )}
 
+      {activeView === 'settings' && (
+        <SettingsPage onBack={() => setActiveView('dashboard')} />
+      )}
+
       <ToastContainer />
       <MobileNav />
     </>
@@ -134,8 +193,10 @@ function AppContent() {
 
 export default function App() {
   return (
-    <GameProvider>
-      <AppContent />
-    </GameProvider>
+    <ThemeProvider>
+      <GameProvider>
+        <AppContent />
+      </GameProvider>
+    </ThemeProvider>
   );
 }

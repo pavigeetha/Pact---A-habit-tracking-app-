@@ -1,9 +1,7 @@
-import { createContext, useContext, useReducer, useCallback } from 'react';
+import { createContext, useContext, useReducer, useCallback, useEffect, useState } from 'react';
+import { supabase } from '../lib/supabase';
+import * as api from '../lib/api';
 import {
-  MOCK_TEAMS,
-  MOCK_USERS,
-  MOCK_HABITS,
-  MOCK_WEEKLY_ACTIVITY,
   HP_GAIN,
   HP_LOSS,
   ATTACK_DAMAGE,
@@ -16,39 +14,111 @@ const GameStateContext = createContext(null);
 const GameDispatchContext = createContext(null);
 
 const initialState = {
-  teams: MOCK_TEAMS,
-  users: MOCK_USERS,
-  habits: MOCK_HABITS,
-  weeklyActivity: MOCK_WEEKLY_ACTIVITY,
-  currentUserId: 'u1',
-  currentTeamId: 't1',
+  // Auth
+  session: null,
+  user: null,       // supabase auth user
+  profile: null,    // profiles row
+  loading: true,
+
+  // Group
+  group: null,      // groups row
+  groupMembers: [], // profiles[]
+  hasGroup: false,
+
+  // Habits
+  habits: [],
+
+  // Game
   revivalMode: false,
   revivalProgress: 0,
   toasts: [],
-  hpChanges: [], // { id, value, timestamp }
+  hpChanges: [],
+  collectedRewards: [],
+
+  // Fallback for demo mode
+  isDemoMode: false,
 };
 
 function gameReducer(state, action) {
   switch (action.type) {
+    case 'SET_SESSION':
+      return { ...state, session: action.payload, loading: false };
+
+    case 'SET_PROFILE':
+      return { ...state, profile: action.payload };
+
+    case 'SET_GROUP':
+      return {
+        ...state,
+        group: action.payload,
+        hasGroup: !!action.payload,
+      };
+
+    case 'SET_GROUP_MEMBERS':
+      return { ...state, groupMembers: action.payload };
+
+    case 'SET_HABITS':
+      return { ...state, habits: action.payload };
+
+    case 'SET_COLLECTED_REWARDS':
+      return { ...state, collectedRewards: action.payload };
+
+    case 'SET_LOADING':
+      return { ...state, loading: action.payload };
+
+    case 'ENABLE_DEMO': {
+      // For demo mode — use mock data inline
+      return {
+        ...state,
+        isDemoMode: true,
+        loading: false,
+        session: { user: { id: 'demo-user' } },
+        user: { id: 'demo-user', email: 'demo@pact.app' },
+        profile: {
+          id: 'demo-user',
+          display_name: action.payload?.name || 'Alex Rivera',
+          theme: 'cottagecore',
+          consistency: 92,
+          contribution: 45,
+          streak: 7,
+        },
+        group: {
+          id: 'demo-group',
+          name: 'Iron Wolves',
+          invite_code: 'WOLF42',
+          hp: 85,
+          max_hp: 100,
+          streak: 5,
+          shield_active: true,
+        },
+        hasGroup: true,
+        groupMembers: [
+          { id: 'demo-user', display_name: 'Alex Rivera', contribution: 45, consistency: 92, streak: 7 },
+          { id: 'u2', display_name: 'Jordan Chen', contribution: 38, consistency: 85, streak: 5 },
+          { id: 'u3', display_name: 'Sam Patel', contribution: 30, consistency: 78, streak: 3 },
+          { id: 'u4', display_name: 'Taylor Kim', contribution: 22, consistency: 65, streak: 1 },
+        ],
+        habits: [
+          { id: 'h1', title: 'Study for 1 hour', icon: '📚', status: 'pending' },
+          { id: 'h2', title: 'Morning workout', icon: '💪', status: 'pending' },
+          { id: 'h3', title: 'Read 20 pages', icon: '📖', status: 'pending' },
+          { id: 'h4', title: 'Meditate 15 min', icon: '🧘', status: 'pending' },
+          { id: 'h5', title: 'Drink 2L water', icon: '💧', status: 'pending' },
+        ],
+        collectedRewards: [],
+      };
+    }
+
+    // ── HABIT ACTIONS (work in both demo and real mode) ──
+
     case 'COMPLETE_HABIT': {
       const habitId = action.payload;
       const newHabits = state.habits.map(h =>
         h.id === habitId ? { ...h, status: 'completed' } : h
       );
-      const team = state.teams.find(t => t.id === state.currentTeamId);
-      const newHp = Math.min((team?.hp || 0) + HP_GAIN, team?.maxHp || 100);
-      const newTeams = state.teams.map(t =>
-        t.id === state.currentTeamId ? { ...t, hp: newHp } : t
-      );
+      const newHp = Math.min((state.group?.hp || 0) + HP_GAIN, state.group?.max_hp || 100);
+      const newGroup = state.group ? { ...state.group, hp: newHp } : null;
 
-      // Update user contribution
-      const newUsers = state.users.map(u =>
-        u.id === state.currentUserId
-          ? { ...u, contribution: u.contribution + HP_GAIN }
-          : u
-      );
-
-      // Revival progress
       let revivalMode = state.revivalMode;
       let revivalProgress = state.revivalProgress;
       if (revivalMode) {
@@ -56,32 +126,30 @@ function gameReducer(state, action) {
         if (revivalProgress >= REVIVAL_STREAK_NEEDED) {
           revivalMode = false;
           revivalProgress = 0;
-          // Restore HP already handled by setting to REVIVAL_TARGET_HP
-          const idx = newTeams.findIndex(t => t.id === state.currentTeamId);
-          if (idx !== -1) newTeams[idx] = { ...newTeams[idx], hp: REVIVAL_TARGET_HP };
+          if (newGroup) newGroup.hp = REVIVAL_TARGET_HP;
         }
       }
 
-      // Check shield activation
-      const updatedTeam = newTeams.find(t => t.id === state.currentTeamId);
+      // Shield check
       const allCompleted = newHabits.every(h => h.status === 'completed');
-      if (allCompleted && updatedTeam) {
-        const newStreak = (updatedTeam.streak || 0) + 1;
-        const shouldShield = newStreak >= SHIELD_STREAK_NEEDED;
-        const tIdx = newTeams.findIndex(t => t.id === state.currentTeamId);
-        newTeams[tIdx] = {
-          ...newTeams[tIdx],
-          streak: newStreak,
-          shieldActive: shouldShield || newTeams[tIdx].shieldActive,
-          shieldExpiry: shouldShield ? Date.now() + 86400000 : newTeams[tIdx].shieldExpiry,
-        };
+      if (allCompleted && newGroup) {
+        const newStreak = (newGroup.streak || 0) + 1;
+        newGroup.streak = newStreak;
+        if (newStreak >= SHIELD_STREAK_NEEDED) {
+          newGroup.shield_active = true;
+        }
       }
+
+      // Update profile contribution
+      const newProfile = state.profile
+        ? { ...state.profile, contribution: (state.profile.contribution || 0) + HP_GAIN }
+        : state.profile;
 
       return {
         ...state,
         habits: newHabits,
-        teams: newTeams,
-        users: newUsers,
+        group: newGroup,
+        profile: newProfile,
         revivalMode,
         revivalProgress,
         hpChanges: [...state.hpChanges, { id: Date.now(), value: HP_GAIN }],
@@ -93,13 +161,9 @@ function gameReducer(state, action) {
       const newHabits = state.habits.map(h =>
         h.id === habitId ? { ...h, status: 'missed' } : h
       );
-      const team = state.teams.find(t => t.id === state.currentTeamId);
-      const newHp = Math.max((team?.hp || 0) - HP_LOSS, 0);
-      const newTeams = state.teams.map(t =>
-        t.id === state.currentTeamId ? { ...t, hp: newHp, streak: 0 } : t
-      );
+      const newHp = Math.max((state.group?.hp || 0) - HP_LOSS, 0);
+      const newGroup = state.group ? { ...state.group, hp: newHp, streak: 0 } : null;
 
-      // Check for revival mode
       let revivalMode = state.revivalMode;
       let revivalProgress = state.revivalProgress;
       if (newHp <= 0) {
@@ -110,99 +174,50 @@ function gameReducer(state, action) {
       return {
         ...state,
         habits: newHabits,
-        teams: newTeams,
+        group: newGroup,
         revivalMode,
         revivalProgress,
         hpChanges: [...state.hpChanges, { id: Date.now(), value: -HP_LOSS }],
       };
     }
 
-    case 'ATTACK_TEAM': {
-      const targetId = action.payload;
-      const myTeam = state.teams.find(t => t.id === state.currentTeamId);
-      const targetTeam = state.teams.find(t => t.id === targetId);
-
-      if (!myTeam || !targetTeam) return state;
-      if (targetTeam.shieldActive) return state; // Shielded
-
-      let damage = ATTACK_DAMAGE;
-      if (myTeam.hp > targetTeam.hp) {
-        damage = ATTACK_DAMAGE + 5; // Bonus damage if stronger
-      }
-
-      const newTeams = state.teams.map(t =>
-        t.id === targetId ? { ...t, hp: Math.max(t.hp - damage, 0) } : t
-      );
-
-      return {
-        ...state,
-        teams: newTeams,
-      };
-    }
-
-    case 'ADD_TOAST': {
-      return {
-        ...state,
-        toasts: [...state.toasts, { id: Date.now(), ...action.payload }],
-      };
-    }
-
-    case 'REMOVE_TOAST': {
-      return {
-        ...state,
-        toasts: state.toasts.filter(t => t.id !== action.payload),
-      };
-    }
-
-    case 'CLEAR_HP_CHANGES': {
-      return { ...state, hpChanges: [] };
-    }
-
-    case 'RESET_HABITS': {
-      return {
-        ...state,
-        habits: state.habits.map(h => ({ ...h, status: 'pending' })),
-      };
-    }
-
-    case 'START_REVIVAL': {
-      return {
-        ...state,
-        revivalMode: true,
-        revivalProgress: 0,
-      };
-    }
-
     case 'ADD_HABIT': {
-      const { title, icon } = action.payload;
+      const { title, icon, id } = action.payload;
       const newHabit = {
-        id: `h${Date.now()}`,
+        id: id || `h${Date.now()}`,
         title,
         icon: icon || '📌',
         status: 'pending',
       };
-      return {
-        ...state,
-        habits: [...state.habits, newHabit],
-      };
+      return { ...state, habits: [...state.habits, newHabit] };
     }
 
-    case 'DELETE_HABIT': {
-      return {
-        ...state,
-        habits: state.habits.filter(h => h.id !== action.payload),
-      };
-    }
+    case 'DELETE_HABIT':
+      return { ...state, habits: state.habits.filter(h => h.id !== action.payload) };
 
-    case 'UPDATE_USER': {
-      const updates = action.payload;
+    case 'UPDATE_PROFILE':
       return {
         ...state,
-        users: state.users.map(u =>
-          u.id === state.currentUserId ? { ...u, ...updates } : u
-        ),
+        profile: state.profile ? { ...state.profile, ...action.payload } : action.payload,
       };
-    }
+
+    case 'COLLECT_REWARD':
+      return {
+        ...state,
+        collectedRewards: [...state.collectedRewards, action.payload],
+      };
+
+    case 'ADD_TOAST':
+      return { ...state, toasts: [...state.toasts, { id: Date.now(), ...action.payload }] };
+
+    case 'REMOVE_TOAST':
+      return { ...state, toasts: state.toasts.filter(t => t.id !== action.payload) };
+
+    case 'CLEAR_HP_CHANGES':
+      return { ...state, hpChanges: [] };
+
+    case 'LOGOUT':
+      return { ...initialState, loading: false };
 
     default:
       return state;
@@ -212,6 +227,75 @@ function gameReducer(state, action) {
 export function GameProvider({ children }) {
   const [state, dispatch] = useReducer(gameReducer, initialState);
 
+  // Listen for auth state changes
+  useEffect(() => {
+    // Check existing session
+    supabase.auth.getSession().then(({ data: { session } }) => {
+      if (session) {
+        dispatch({ type: 'SET_SESSION', payload: session });
+        loadUserData(session.user.id);
+      } else {
+        dispatch({ type: 'SET_LOADING', payload: false });
+      }
+    });
+
+    // Subscribe to auth changes
+    const { data: { subscription } } = supabase.auth.onAuthStateChange(
+      async (event, session) => {
+        dispatch({ type: 'SET_SESSION', payload: session });
+        if (session) {
+          await loadUserData(session.user.id);
+        } else {
+          dispatch({ type: 'LOGOUT' });
+        }
+      }
+    );
+
+    return () => subscription.unsubscribe();
+  }, []);
+
+  async function loadUserData(userId) {
+    try {
+      // Load profile
+      try {
+        const profile = await api.getProfile(userId);
+        if (profile) dispatch({ type: 'SET_PROFILE', payload: profile });
+      } catch (err) { console.warn('Profile load error (non-fatal):', err.message); }
+
+      // Load group
+      let group = null;
+      try {
+        group = await api.getUserGroup(userId);
+        dispatch({ type: 'SET_GROUP', payload: group });
+      } catch (err) { console.warn('Group load error (non-fatal):', err.message); }
+
+      if (group) {
+        // Load group members
+        try {
+          const members = await api.getGroupMembers(group.id);
+          dispatch({ type: 'SET_GROUP_MEMBERS', payload: members });
+        } catch (err) { console.warn('Members load error (non-fatal):', err.message); }
+
+        // Load habits
+        try {
+          const habits = await api.getHabits(userId);
+          dispatch({ type: 'SET_HABITS', payload: habits });
+        } catch (err) { console.warn('Habits load error (non-fatal):', err.message); }
+      }
+
+      // Load collected rewards
+      try {
+        const rewards = await api.getCollectedRewards(userId);
+        dispatch({ type: 'SET_COLLECTED_REWARDS', payload: rewards });
+      } catch (err) { console.warn('Rewards load error (non-fatal):', err.message); }
+
+    } catch (err) {
+      console.error('Error loading user data:', err);
+    } finally {
+      dispatch({ type: 'SET_LOADING', payload: false });
+    }
+  }
+
   return (
     <GameStateContext.Provider value={state}>
       <GameDispatchContext.Provider value={dispatch}>
@@ -220,6 +304,8 @@ export function GameProvider({ children }) {
     </GameStateContext.Provider>
   );
 }
+
+// ── Hooks ──
 
 export function useGameState() {
   const context = useContext(GameStateContext);
@@ -233,27 +319,49 @@ export function useGameDispatch() {
   return context;
 }
 
-// Helper hooks
 export function useCurrentTeam() {
-  const state = useGameState();
-  return state.teams.find(t => t.id === state.currentTeamId);
+  const { group } = useGameState();
+  if (!group) return null;
+  // Return in the shape components expect
+  return {
+    id: group.id,
+    name: group.name,
+    hp: group.hp,
+    maxHp: group.max_hp,
+    streak: group.streak,
+    shieldActive: group.shield_active,
+    shieldExpiry: group.shield_expiry,
+    inviteCode: group.invite_code,
+  };
 }
 
 export function useCurrentUser() {
-  const state = useGameState();
-  return state.users.find(u => u.id === state.currentUserId);
+  const { profile } = useGameState();
+  if (!profile) return null;
+  return {
+    id: profile.id,
+    name: profile.display_name,
+    avatar: (profile.display_name || 'AA').slice(0, 2).toUpperCase(),
+    contribution: profile.contribution || 0,
+    consistency: profile.consistency || 0,
+    streak: profile.streak || 0,
+  };
 }
 
 export function useTeamMembers() {
-  const state = useGameState();
-  const team = state.teams.find(t => t.id === state.currentTeamId);
-  if (!team) return [];
-  return state.users.filter(u => team.members.includes(u.id));
+  const { groupMembers } = useGameState();
+  return groupMembers.map(m => ({
+    id: m.id,
+    name: m.display_name,
+    avatar: (m.display_name || 'AA').slice(0, 2).toUpperCase(),
+    contribution: m.contribution || 0,
+    consistency: m.consistency || 0,
+    streak: m.streak || 0,
+  }));
 }
 
 export function useToast() {
   const dispatch = useGameDispatch();
-
   const addToast = useCallback((message, type = 'info') => {
     const id = Date.now();
     dispatch({ type: 'ADD_TOAST', payload: { id, message, type } });
@@ -261,6 +369,163 @@ export function useToast() {
       dispatch({ type: 'REMOVE_TOAST', payload: id });
     }, 3000);
   }, [dispatch]);
-
   return addToast;
+}
+
+// ── Async action helpers ──
+
+export function useSupabaseActions() {
+  const state = useGameState();
+  const dispatch = useGameDispatch();
+
+  const isDemo = state.isDemoMode;
+  const userId = state.session?.user?.id;
+  const groupId = state.group?.id;
+
+  return {
+    async completeHabit(habitId) {
+      dispatch({ type: 'COMPLETE_HABIT', payload: habitId });
+      if (!isDemo && userId) {
+        try {
+          await api.updateHabitStatus(habitId, 'completed');
+          // Update group HP in DB
+          const newHp = Math.min((state.group?.hp || 0) + HP_GAIN, state.group?.max_hp || 100);
+          if (groupId) {
+            await api.updateGroupHp(groupId, newHp);
+          }
+        } catch (err) {
+          console.error('Error completing habit:', err);
+        }
+      }
+    },
+
+    async missHabit(habitId) {
+      dispatch({ type: 'MISS_HABIT', payload: habitId });
+      if (!isDemo && userId) {
+        try {
+          await api.updateHabitStatus(habitId, 'missed');
+          const newHp = Math.max((state.group?.hp || 0) - HP_LOSS, 0);
+          if (groupId) {
+            await api.updateGroupHp(groupId, newHp);
+          }
+        } catch (err) {
+          console.error('Error missing habit:', err);
+        }
+      }
+    },
+
+    async addHabit(title, icon) {
+      if (!isDemo && userId && groupId) {
+        try {
+          const habit = await api.addHabit(userId, groupId, title, icon);
+          dispatch({ type: 'ADD_HABIT', payload: habit });
+        } catch (err) {
+          console.error('Error adding habit:', err);
+          // Fallback locally
+          dispatch({ type: 'ADD_HABIT', payload: { title, icon } });
+        }
+      } else {
+        dispatch({ type: 'ADD_HABIT', payload: { title, icon } });
+      }
+    },
+
+    async deleteHabit(habitId) {
+      dispatch({ type: 'DELETE_HABIT', payload: habitId });
+      if (!isDemo) {
+        try {
+          await api.deleteHabit(habitId);
+        } catch (err) {
+          console.error('Error deleting habit:', err);
+        }
+      }
+    },
+
+    async collectReward(rewardId, clubId) {
+      dispatch({ type: 'COLLECT_REWARD', payload: rewardId });
+      if (!isDemo && userId) {
+        try {
+          await api.collectReward(userId, rewardId, clubId);
+        } catch (err) {
+          console.error('Error collecting reward:', err);
+        }
+      }
+    },
+
+    async updateProfile(updates) {
+      dispatch({ type: 'UPDATE_PROFILE', payload: updates });
+      if (!isDemo && userId) {
+        try {
+          await api.updateProfile(userId, {
+            display_name: updates.display_name || updates.name,
+            ...(updates.theme && { theme: updates.theme }),
+          });
+        } catch (err) {
+          console.error('Error updating profile:', err);
+        }
+      }
+    },
+
+    async signUp(email, password, displayName) {
+      const data = await api.signUp(email, password, displayName);
+      return data;
+    },
+
+    async signIn(email, password) {
+      const data = await api.signIn(email, password);
+      return data;
+    },
+
+    async signOut() {
+      await api.signOut();
+      dispatch({ type: 'LOGOUT' });
+    },
+
+    async createGroup(name) {
+      if (isDemo) {
+        dispatch({
+          type: 'SET_GROUP',
+          payload: {
+            id: 'demo-group',
+            name: name || 'My Pact',
+            invite_code: 'DEMO42',
+            hp: 100,
+            max_hp: 100,
+            streak: 0,
+            shield_active: false,
+          },
+        });
+        return { invite_code: 'DEMO42' };
+      }
+      const group = await api.createGroup(userId, name);
+      dispatch({ type: 'SET_GROUP', payload: group });
+      return group;
+    },
+
+    async joinGroup(code) {
+      if (isDemo) {
+        dispatch({
+          type: 'SET_GROUP',
+          payload: {
+            id: 'demo-group',
+            name: 'Joined Pact',
+            invite_code: code,
+            hp: 85,
+            max_hp: 100,
+            streak: 3,
+            shield_active: false,
+          },
+        });
+        return;
+      }
+      const group = await api.joinGroupByCode(userId, code);
+      dispatch({ type: 'SET_GROUP', payload: group });
+      // Load members
+      const members = await api.getGroupMembers(group.id);
+      dispatch({ type: 'SET_GROUP_MEMBERS', payload: members });
+    },
+
+    enableDemo(name) {
+      dispatch({ type: 'ENABLE_DEMO', payload: { name } });
+    },
+  };
 }

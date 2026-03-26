@@ -1,33 +1,30 @@
 import { useState } from 'react';
-import { useGameState, useGameDispatch, useToast } from '../context/GameContext';
+import { useGameState, useGameDispatch, useToast, useSupabaseActions } from '../context/GameContext';
 import { CheckCircle, XCircle, ListChecks, Plus, Trash2, X } from 'lucide-react';
 
 const HABIT_ICONS = ['📚', '💪', '📖', '🧘', '💧', '🏃', '🎨', '💻', '🎵', '🍎', '✍️', '🧠', '🛌', '🚶', '📝'];
 
 export default function HabitList() {
   const { habits, revivalMode, revivalProgress } = useGameState();
-  const dispatch = useGameDispatch();
   const addToast = useToast();
+  const actions = useSupabaseActions();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newIcon, setNewIcon] = useState('📚');
 
   const handleComplete = (habitId, title) => {
-    dispatch({ type: 'COMPLETE_HABIT', payload: habitId });
+    actions.completeHabit(habitId);
     addToast(`✅ "${title}" completed! +10 HP`, 'success');
   };
 
   const handleMiss = (habitId, title) => {
-    dispatch({ type: 'MISS_HABIT', payload: habitId });
+    actions.missHabit(habitId);
     addToast(`❌ "${title}" missed! -15 HP`, 'danger');
   };
 
   const handleAddHabit = () => {
     if (!newTitle.trim()) return;
-    dispatch({
-      type: 'ADD_HABIT',
-      payload: { title: newTitle.trim(), icon: newIcon },
-    });
+    actions.addHabit(newTitle.trim(), newIcon);
     addToast(`➕ New habit "${newTitle.trim()}" added!`, 'info');
     setNewTitle('');
     setNewIcon('📚');
@@ -35,7 +32,7 @@ export default function HabitList() {
   };
 
   const handleDeleteHabit = (habitId, title) => {
-    dispatch({ type: 'DELETE_HABIT', payload: habitId });
+    actions.deleteHabit(habitId);
     addToast(`🗑️ "${title}" removed`, 'warning');
   };
 

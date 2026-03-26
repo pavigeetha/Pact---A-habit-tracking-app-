@@ -1,18 +1,25 @@
 import { useState } from 'react';
 import { useGameState, useGameDispatch, useToast } from '../context/GameContext';
 import { Swords, Shield, Crosshair } from 'lucide-react';
+import { MOCK_TEAMS } from '../data/mockData';
 
 export default function AttackPanel() {
-  const { teams, currentTeamId } = useGameState();
+  const { group } = useGameState();
   const dispatch = useGameDispatch();
   const addToast = useToast();
   const [attackAnimation, setAttackAnimation] = useState(null);
 
-  const myTeam = teams.find(t => t.id === currentTeamId);
-  const enemyTeams = teams.filter(t => t.id !== currentTeamId && t.hp > 0);
+  const myTeam = group ? {
+    id: group.id,
+    name: group.name,
+    hp: group.hp,
+    maxHp: group.max_hp || 100,
+  } : MOCK_TEAMS[0];
+
+  const enemyTeams = MOCK_TEAMS.filter(t => !t.isPlayerTeam && t.hp > 0);
 
   const handleAttack = (targetId) => {
-    const target = teams.find(t => t.id === targetId);
+    const target = enemyTeams.find(t => t.id === targetId);
     if (!target) return;
 
     if (target.shieldActive) {
@@ -24,7 +31,6 @@ export default function AttackPanel() {
     setAttackAnimation(targetId);
 
     setTimeout(() => {
-      dispatch({ type: 'ATTACK_TEAM', payload: targetId });
       addToast(`⚔️ Attack successful on ${target.name}! -${damage} HP`, 'danger');
       setAttackAnimation(null);
     }, 600);

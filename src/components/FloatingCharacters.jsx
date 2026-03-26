@@ -1,34 +1,18 @@
-export default function FloatingCharacters() {
+export default function CherryBlossomPetals() {
   return (
-    <div className="floating-chars-container" aria-hidden="true">
-      {/* Cute floating characters that pop in from edges */}
-      <div className="floating-char fc-1">
-        <div className="fc-bubble">Let's go! 💪</div>
-        <span className="fc-emoji">🧑‍🚀</span>
-      </div>
-      <div className="floating-char fc-2">
-        <span className="fc-emoji">🦊</span>
-      </div>
-      <div className="floating-char fc-3">
-        <div className="fc-bubble">Stay strong!</div>
-        <span className="fc-emoji">🐉</span>
-      </div>
-      <div className="floating-char fc-4">
-        <span className="fc-emoji">🦉</span>
-      </div>
-      <div className="floating-char fc-5">
-        <span className="fc-emoji">⚡</span>
-      </div>
-      <div className="floating-char fc-6">
-        <div className="fc-bubble">Keep going!</div>
-        <span className="fc-emoji">🐺</span>
-      </div>
-      <div className="floating-char fc-7">
-        <span className="fc-emoji">🌟</span>
-      </div>
-      <div className="floating-char fc-8">
-        <span className="fc-emoji">🎯</span>
-      </div>
+    <div className="petals-container" aria-hidden="true">
+      <div className="petal petal-1" />
+      <div className="petal petal-2" />
+      <div className="petal petal-3" />
+      <div className="petal petal-4" />
+      <div className="petal petal-5" />
+      <div className="petal petal-6" />
+      <div className="petal petal-7" />
+      <div className="petal petal-8" />
+      <div className="petal petal-9" />
+      <div className="petal petal-10" />
+      <div className="petal petal-11" />
+      <div className="petal petal-12" />
     </div>
   );
 }
