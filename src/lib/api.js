@@ -175,25 +175,29 @@ export async function joinGroupByCode(userId, code) {
   return group;
 }
 
-export async function getUserGroup(userId) {
-  // Step 1: Find the user's group membership
-  const { data: membership, error: memError } = await supabase
+export async function getUserGroups(userId) {
+  // Step 1: Find ALL group memberships
+  const { data: memberships, error: memError } = await supabase
     .from('group_members')
     .select('group_id, role')
-    .eq('user_id', userId)
-    .limit(1)
-    .maybeSingle();
-  if (memError) { console.error('getUserGroup membership error:', memError); return null; }
-  if (!membership) return null;
+    .eq('user_id', userId);
+  if (memError) { console.error('getUserGroups error:', memError); return []; }
+  if (!memberships || memberships.length === 0) return [];
 
-  // Step 2: Get the actual group data
-  const { data: group, error: grpError } = await supabase
+  // Step 2: Get all group data
+  const groupIds = memberships.map(m => m.group_id);
+  const { data: groups, error: grpError } = await supabase
     .from('groups')
     .select('*')
-    .eq('id', membership.group_id)
-    .single();
-  if (grpError) { console.error('getUserGroup group error:', grpError); return null; }
-  return group;
+    .in('id', groupIds);
+  if (grpError) { console.error('getUserGroups groups error:', grpError); return []; }
+  return groups || [];
+}
+
+// Backward compat — returns first group
+export async function getUserGroup(userId) {
+  const groups = await getUserGroups(userId);
+  return groups.length > 0 ? groups[0] : null;
 }
 
 export async function getGroupMembers(groupId) {

@@ -1,10 +1,17 @@
 import { useState } from 'react';
 import { useGameState, useGameDispatch, useToast } from '../context/GameContext';
-import { Swords, Shield, Crosshair, AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
+import { Swords, Shield, Crosshair, AlertTriangle, Clock, ChevronDown, ChevronUp, Ban } from 'lucide-react';
 import { MOCK_TEAMS } from '../data/mockData';
 
+const MAX_ATTACKS_PER_DAY = 2;
+
+function getToday() {
+  const d = new Date();
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`;
+}
+
 export default function AttackPanel() {
-  const { group } = useGameState();
+  const { group, attacksToday } = useGameState();
   const dispatch = useGameDispatch();
   const addToast = useToast();
   const [attackAnimation, setAttackAnimation] = useState(null);
@@ -22,6 +29,10 @@ export default function AttackPanel() {
   const [showLog, setShowLog] = useState(false);
 
   const myHp = group?.hp || 0;
+  const today = getToday();
+  const todaysAttacks = attacksToday.filter(a => a.date === today);
+  const attacksRemaining = MAX_ATTACKS_PER_DAY - todaysAttacks.length;
+  const alreadyAttackedIds = todaysAttacks.map(a => a.targetId);
 
   const enemyTeams = MOCK_TEAMS.filter(t => !t.isPlayerTeam && (enemyHps[t.id] ?? t.hp) > 0).map(t => ({
     ...t,
@@ -38,8 +49,18 @@ export default function AttackPanel() {
       return;
     }
 
+    if (attacksRemaining <= 0) {
+      addToast(`⚠️ No attacks remaining today! (${MAX_ATTACKS_PER_DAY}/day limit)`, 'warning');
+      return;
+    }
+
+    if (alreadyAttackedIds.includes(targetId)) {
+      addToast(`⚠️ Already attacked ${target.name} today! Pick a different target.`, 'warning');
+      return;
+    }
+
     if (target.hp >= myHp) {
-      addToast(`⚠️ Cannot attack ${target.name} — their HP (${target.hp}) is not lower than yours (${myHp})!`, 'warning');
+      addToast(`⚠️ Cannot attack ${target.name} — their HP (${target.hp}) ≥ yours (${myHp})!`, 'warning');
       return;
     }
 
@@ -49,19 +70,27 @@ export default function AttackPanel() {
     setTimeout(() => {
       const newHp = Math.max((enemyHps[targetId] ?? target.hp) - damage, 0);
       setEnemyHps(prev => ({ ...prev, [targetId]: newHp }));
-      
+
+      // Record attack
+      dispatch({ type: 'RECORD_ATTACK', payload: { targetId, date: today, damage } });
+
       // Add to attack log
       setAttackLog(prev => [
         { id: Date.now(), attacker: target.name, damage, time: 'Just now', incoming: false },
         ...prev.slice(0, 9),
       ]);
 
-      addToast(`⚔️ Hit ${target.name} for ${damage} damage! (${newHp} HP remaining)`, 'danger');
+      addToast(`⚔️ Hit ${target.name} for ${damage} damage! (${newHp} HP left) — ${attacksRemaining - 1} attacks remaining`, 'danger');
       setAttackAnimation(null);
     }, 600);
   };
 
-  const canAttack = (targetHp) => targetHp < myHp;
+  const canAttack = (targetId, targetHp) => {
+    if (targetHp >= myHp) return { allowed: false, reason: 'Too Strong' };
+    if (alreadyAttackedIds.includes(targetId)) return { allowed: false, reason: 'Already Hit' };
+    if (attacksRemaining <= 0) return { allowed: false, reason: 'No Attacks Left' };
+    return { allowed: true };
+  };
 
   return (
     <div className="card" id="attack-panel">
@@ -70,13 +99,28 @@ export default function AttackPanel() {
         ATTACK SYSTEM
       </div>
 
-      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
-        Attack pacts with <strong>lower HP</strong> than yours ({myHp} HP). Stronger bases deal more damage.
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 8 }}>
+        Attack pacts with <strong>lower HP</strong> than yours ({myHp} HP).
+      </div>
+
+      {/* Attack budget */}
+      <div className="flex items-center gap-8" style={{ marginBottom: 14 }}>
+        <div style={{
+          padding: '4px 10px',
+          borderRadius: 'var(--radius-full)',
+          background: attacksRemaining > 0 ? 'rgba(34, 197, 94, 0.1)' : 'rgba(239, 68, 68, 0.1)',
+          border: `1px solid ${attacksRemaining > 0 ? 'rgba(34,197,94,0.2)' : 'rgba(239,68,68,0.2)'}`,
+          fontSize: '0.78rem',
+          fontWeight: 700,
+          color: attacksRemaining > 0 ? 'var(--accent-green)' : 'var(--accent-red)',
+        }}>
+          ⚔️ {attacksRemaining}/{MAX_ATTACKS_PER_DAY} attacks remaining today
+        </div>
       </div>
 
       <div className="flex flex-col gap-8 stagger">
         {enemyTeams.map(team => {
-          const attackable = canAttack(team.hp);
+          const { allowed, reason } = canAttack(team.id, team.hp);
           const hpPercent = (team.hp / (team.maxHp || 100)) * 100;
 
           return (
@@ -89,44 +133,42 @@ export default function AttackPanel() {
                 gap: 12,
                 padding: '12px 14px',
                 borderRadius: 'var(--radius-md)',
-                background: attackable ? 'rgba(255,255,255,0.03)' : 'rgba(150,150,150,0.05)',
-                border: `1px solid ${attackable ? 'var(--border-default)' : 'rgba(150,150,150,0.15)'}`,
+                background: allowed ? 'rgba(255,255,255,0.03)' : 'rgba(150,150,150,0.05)',
+                border: `1px solid ${allowed ? 'var(--border-default)' : 'rgba(150,150,150,0.15)'}`,
                 transition: 'all var(--transition-base)',
-                opacity: attackable ? 1 : 0.55,
+                opacity: allowed ? 1 : 0.55,
               }}
             >
               <div style={{
                 width: 36,
                 height: 36,
                 borderRadius: 'var(--radius-md)',
-                background: attackable ? 'rgba(239, 68, 68, 0.15)' : 'rgba(150,150,150,0.1)',
+                background: allowed ? 'rgba(239, 68, 68, 0.15)' : 'rgba(150,150,150,0.1)',
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 flexShrink: 0,
               }}>
-                <Crosshair size={18} style={{ color: attackable ? 'var(--accent-red)' : 'var(--text-muted)' }} />
+                <Crosshair size={18} style={{ color: allowed ? 'var(--accent-red)' : 'var(--text-muted)' }} />
               </div>
               <div style={{ flex: 1, minWidth: 0 }}>
                 <div style={{ fontWeight: 600, fontSize: '0.9rem' }} className="flex items-center gap-8">
                   {team.name}
                   {team.shieldActive && (
                     <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>
-                      <Shield size={10} />
-                      Shielded
+                      <Shield size={10} /> Shielded
                     </span>
                   )}
-                  {!attackable && !team.shieldActive && (
+                  {!allowed && reason && (
                     <span className="badge badge-yellow" style={{ fontSize: '0.6rem' }}>
-                      <AlertTriangle size={10} />
-                      Too Strong
+                      {reason === 'Already Hit' ? <Ban size={10} /> : <AlertTriangle size={10} />}
+                      {reason}
                     </span>
                   )}
                 </div>
                 <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
                   {team.hp} HP remaining
                 </div>
-                {/* Mini HP bar */}
                 <div style={{ marginTop: 4, height: 4, borderRadius: 2, background: 'rgba(150,150,150,0.15)', overflow: 'hidden' }}>
                   <div style={{
                     width: `${hpPercent}%`,
@@ -140,28 +182,22 @@ export default function AttackPanel() {
               <button
                 className="btn btn-red btn-sm"
                 onClick={() => handleAttack(team.id)}
-                disabled={!attackable || team.shieldActive || attackAnimation !== null}
+                disabled={!allowed || team.shieldActive || attackAnimation !== null}
                 style={{
-                  opacity: (!attackable || team.shieldActive) ? 0.3 : 1,
-                  cursor: (!attackable || team.shieldActive) ? 'not-allowed' : 'pointer',
+                  opacity: (!allowed || team.shieldActive) ? 0.3 : 1,
+                  cursor: (!allowed || team.shieldActive) ? 'not-allowed' : 'pointer',
                 }}
                 id={`attack-${team.id}`}
               >
-                <Swords size={14} />
-                Attack
+                <Swords size={14} /> Attack
               </button>
             </div>
           );
         })}
 
         {enemyTeams.length === 0 && (
-          <div style={{
-            textAlign: 'center',
-            padding: 24,
-            color: 'var(--text-muted)',
-            fontSize: '0.85rem',
-          }}>
-            🏆 All enemies defeated! You dominate the leaderboard!
+          <div style={{ textAlign: 'center', padding: 24, color: 'var(--text-muted)', fontSize: '0.85rem' }}>
+            🏆 All enemies defeated!
           </div>
         )}
       </div>
@@ -172,20 +208,13 @@ export default function AttackPanel() {
           onClick={() => setShowLog(!showLog)}
           className="flex items-center gap-8"
           style={{
-            background: 'none',
-            border: 'none',
-            color: 'var(--text-secondary)',
-            fontSize: '0.8rem',
-            fontWeight: 600,
-            cursor: 'pointer',
-            padding: '4px 0',
-            width: '100%',
-            justifyContent: 'space-between',
+            background: 'none', border: 'none', color: 'var(--text-secondary)',
+            fontSize: '0.8rem', fontWeight: 600, cursor: 'pointer', padding: '4px 0',
+            width: '100%', justifyContent: 'space-between',
           }}
         >
           <span className="flex items-center gap-8">
-            <Clock size={12} />
-            Attack Log ({attackLog.length})
+            <Clock size={12} /> Attack Log ({attackLog.length})
           </span>
           {showLog ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
         </button>
@@ -194,11 +223,8 @@ export default function AttackPanel() {
           <div className="flex flex-col gap-4" style={{ marginTop: 8 }}>
             {attackLog.map(log => (
               <div key={log.id} style={{
-                display: 'flex',
-                alignItems: 'center',
-                gap: 8,
-                padding: '6px 10px',
-                borderRadius: 'var(--radius-sm)',
+                display: 'flex', alignItems: 'center', gap: 8,
+                padding: '6px 10px', borderRadius: 'var(--radius-sm)',
                 background: log.incoming ? 'rgba(239, 68, 68, 0.06)' : 'rgba(34, 197, 94, 0.06)',
                 border: `1px solid ${log.incoming ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)'}`,
                 fontSize: '0.78rem',
@@ -209,19 +235,13 @@ export default function AttackPanel() {
                 <span style={{ flex: 1, color: 'var(--text-secondary)' }}>
                   {log.incoming
                     ? `${log.attacker} attacked your base (-${log.damage} HP)`
-                    : `You attacked ${log.attacker} (-${log.damage} HP)`
-                  }
+                    : `You attacked ${log.attacker} (-${log.damage} HP)`}
                 </span>
                 <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', flexShrink: 0 }}>
                   {log.time}
                 </span>
               </div>
             ))}
-            {attackLog.length === 0 && (
-              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: 8 }}>
-                No attacks yet.
-              </div>
-            )}
           </div>
         )}
       </div>

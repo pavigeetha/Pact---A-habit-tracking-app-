@@ -21,7 +21,8 @@ const initialState = {
   loading: true,
 
   // Group
-  group: null,      // groups row
+  group: null,      // active group (groups row)
+  allGroups: [],    // all groups user belongs to
   groupMembers: [], // profiles[]
   hasGroup: false,
 
@@ -34,6 +35,7 @@ const initialState = {
   toasts: [],
   hpChanges: [],
   collectedRewards: [],
+  attacksToday: [],   // { targetId, date }
 
   // Fallback for demo mode
   isDemoMode: false,
@@ -57,17 +59,41 @@ function gameReducer(state, action) {
     case 'SET_GROUP_MEMBERS':
       return { ...state, groupMembers: action.payload };
 
+    case 'SET_ALL_GROUPS':
+      return { ...state, allGroups: action.payload };
+
     case 'SET_HABITS':
       return { ...state, habits: action.payload };
 
     case 'SET_COLLECTED_REWARDS':
       return { ...state, collectedRewards: action.payload };
 
+    case 'RECORD_ATTACK':
+      return { ...state, attacksToday: [...state.attacksToday, action.payload] };
+
     case 'SET_LOADING':
       return { ...state, loading: action.payload };
 
     case 'ENABLE_DEMO': {
       // For demo mode — use mock data inline
+      const demoGroup = {
+        id: 'demo-group',
+        name: 'Iron Wolves',
+        invite_code: 'WOLF42',
+        hp: 85,
+        max_hp: 100,
+        streak: 5,
+        shield_active: true,
+      };
+      const demoGroup2 = {
+        id: 'demo-group-2',
+        name: 'Study Squad',
+        invite_code: 'STDY99',
+        hp: 60,
+        max_hp: 100,
+        streak: 2,
+        shield_active: false,
+      };
       return {
         ...state,
         isDemoMode: true,
@@ -82,15 +108,8 @@ function gameReducer(state, action) {
           contribution: 45,
           streak: 7,
         },
-        group: {
-          id: 'demo-group',
-          name: 'Iron Wolves',
-          invite_code: 'WOLF42',
-          hp: 85,
-          max_hp: 100,
-          streak: 5,
-          shield_active: true,
-        },
+        group: demoGroup,
+        allGroups: [demoGroup, demoGroup2],
         hasGroup: true,
         groupMembers: [
           { id: 'demo-user', display_name: 'Alex Rivera', contribution: 45, consistency: 92, streak: 7 },
@@ -106,6 +125,7 @@ function gameReducer(state, action) {
           { id: 'h5', title: 'Drink 2L water', icon: '💧', status: 'pending' },
         ],
         collectedRewards: [],
+        attacksToday: [],
       };
     }
 
@@ -263,17 +283,22 @@ export function GameProvider({ children }) {
         if (profile) dispatch({ type: 'SET_PROFILE', payload: profile });
       } catch (err) { console.warn('Profile load error (non-fatal):', err.message); }
 
-      // Load group
-      let group = null;
+      // Load ALL groups
+      let allGroups = [];
       try {
-        group = await api.getUserGroup(userId);
-        dispatch({ type: 'SET_GROUP', payload: group });
-      } catch (err) { console.warn('Group load error (non-fatal):', err.message); }
+        allGroups = await api.getUserGroups(userId);
+        dispatch({ type: 'SET_ALL_GROUPS', payload: allGroups });
+        // Set first group as active
+        if (allGroups.length > 0) {
+          dispatch({ type: 'SET_GROUP', payload: allGroups[0] });
+        }
+      } catch (err) { console.warn('Groups load error (non-fatal):', err.message); }
 
-      if (group) {
-        // Load group members
+      const activeGroup = allGroups[0] || null;
+      if (activeGroup) {
+        // Load group members for active group
         try {
-          const members = await api.getGroupMembers(group.id);
+          const members = await api.getGroupMembers(activeGroup.id);
           dispatch({ type: 'SET_GROUP_MEMBERS', payload: members });
         } catch (err) { console.warn('Members load error (non-fatal):', err.message); }
 
@@ -501,46 +526,62 @@ export function useSupabaseActions() {
 
     async createGroup(name) {
       if (isDemo) {
-        dispatch({
-          type: 'SET_GROUP',
-          payload: {
-            id: 'demo-group',
-            name: name || 'My Pact',
-            invite_code: 'DEMO42',
-            hp: 100,
-            max_hp: 100,
-            streak: 0,
-            shield_active: false,
-          },
-        });
-        return { invite_code: 'DEMO42' };
+        const newGroup = {
+          id: `demo-group-${Date.now()}`,
+          name: name || 'My Pact',
+          invite_code: 'DEMO' + Math.random().toString(36).slice(2, 6).toUpperCase(),
+          hp: 100,
+          max_hp: 100,
+          streak: 0,
+          shield_active: false,
+        };
+        dispatch({ type: 'SET_GROUP', payload: newGroup });
+        dispatch({ type: 'SET_ALL_GROUPS', payload: [...state.allGroups, newGroup] });
+        return newGroup;
       }
       const group = await api.createGroup(userId, name);
       dispatch({ type: 'SET_GROUP', payload: group });
+      dispatch({ type: 'SET_ALL_GROUPS', payload: [...state.allGroups, group] });
       return group;
     },
 
     async joinGroup(code) {
       if (isDemo) {
-        dispatch({
-          type: 'SET_GROUP',
-          payload: {
-            id: 'demo-group',
-            name: 'Joined Pact',
-            invite_code: code,
-            hp: 85,
-            max_hp: 100,
-            streak: 3,
-            shield_active: false,
-          },
-        });
+        const newGroup = {
+          id: `demo-joined-${Date.now()}`,
+          name: 'Joined Pact',
+          invite_code: code,
+          hp: 85,
+          max_hp: 100,
+          streak: 3,
+          shield_active: false,
+        };
+        dispatch({ type: 'SET_GROUP', payload: newGroup });
+        dispatch({ type: 'SET_ALL_GROUPS', payload: [...state.allGroups, newGroup] });
         return;
       }
       const group = await api.joinGroupByCode(userId, code);
       dispatch({ type: 'SET_GROUP', payload: group });
+      dispatch({ type: 'SET_ALL_GROUPS', payload: [...state.allGroups, group] });
       // Load members
       const members = await api.getGroupMembers(group.id);
       dispatch({ type: 'SET_GROUP_MEMBERS', payload: members });
+    },
+
+    async switchGroup(groupId) {
+      const target = state.allGroups.find(g => g.id === groupId);
+      if (!target) return;
+      dispatch({ type: 'SET_GROUP', payload: target });
+      // Reload members for the new group
+      if (!isDemo) {
+        try {
+          const members = await api.getGroupMembers(groupId);
+          dispatch({ type: 'SET_GROUP_MEMBERS', payload: members });
+          // Reload habits
+          const habits = await api.getHabits(userId);
+          dispatch({ type: 'SET_HABITS', payload: habits });
+        } catch (err) { console.warn('switchGroup error:', err); }
+      }
     },
 
     enableDemo(name) {

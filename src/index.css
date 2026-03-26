@@ -2501,7 +2501,6 @@ button {
 
 .base-fortress-svg {
   width: 100%;
-  max-height: 180px;
 }
 
 .wall-main {
@@ -2621,6 +2620,62 @@ button {
   padding: 2px 8px;
   border-radius: var(--radius-full);
   border: 1px solid rgba(167, 139, 250, 0.2);
+}
+
+/* ── Attack Animation ── */
+.base-under-attack {
+  animation: baseShake 0.15s ease-in-out 6;
+}
+@keyframes baseShake {
+  0%, 100% { transform: translateX(0); }
+  25% { transform: translateX(-6px) rotate(-0.5deg); }
+  75% { transform: translateX(6px) rotate(0.5deg); }
+}
+
+.attack-flash-overlay {
+  position: absolute;
+  inset: 0;
+  z-index: 10;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  animation: attackFlashAnim 1.5s ease-out forwards;
+  pointer-events: none;
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+@keyframes attackFlashAnim {
+  0% { background: rgba(239, 68, 68, 0.5); }
+  30% { background: rgba(239, 68, 68, 0.25); }
+  100% { background: transparent; }
+}
+
+.attack-flash-text {
+  font-family: var(--font-display);
+  font-weight: 900;
+  font-size: 1.4rem;
+  color: #fff;
+  text-shadow: 0 0 12px rgba(239, 68, 68, 0.8), 0 2px 6px rgba(0,0,0,0.5);
+  animation: attackTextPulse 0.4s ease-in-out 3;
+  letter-spacing: 2px;
+}
+@keyframes attackTextPulse {
+  0%, 100% { transform: scale(1); opacity: 1; }
+  50% { transform: scale(1.15); opacity: 0.8; }
+}
+
+.game-base {
+  position: relative;
+}
+
+/* ── Badge Yellow ── */
+.badge-yellow {
+  background: rgba(250, 204, 21, 0.12);
+  color: #b45309;
+  border: 1px solid rgba(250, 204, 21, 0.25);
+}
+[data-theme="midnight"] .badge-yellow {
+  color: #fbbf24;
 }
 
 /* ── Group Point Badges ── */

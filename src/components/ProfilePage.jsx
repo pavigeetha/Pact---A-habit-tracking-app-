@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useCurrentUser, useCurrentTeam, useGameState, useToast, useSupabaseActions } from '../context/GameContext';
 import {
   User, Edit3, Save, X, Trophy, Flame, Target,
-  BarChart3, Shield, Award, Calendar, ArrowLeft
+  BarChart3, Shield, Award, Calendar, ArrowLeft, Users, ChevronRight, Heart
 } from 'lucide-react';
 
 const AVATAR_OPTIONS = ['🧑‍💻', '🧙', '🦊', '🐺', '🧝', '🧑‍🚀', '🦉', '🐉', '🎮', '⚔️'];
@@ -18,7 +18,7 @@ const AVATAR_BG_OPTIONS = [
 export default function ProfilePage({ onBack }) {
   const user = useCurrentUser();
   const team = useCurrentTeam();
-  const { habits } = useGameState();
+  const { habits, allGroups, group } = useGameState();
   const addToast = useToast();
   const actions = useSupabaseActions();
 
@@ -30,8 +30,6 @@ export default function ProfilePage({ onBack }) {
   if (!user) return null;
 
   const completedHabits = habits.filter(h => h.status === 'completed').length;
-  const missedHabits = habits.filter(h => h.status === 'missed').length;
-  // Use dummy weekly data if user.weeklyCompleted isn't available
   const weeklyCompleted = [true, true, true, false, true, true, true];
   const totalDays = weeklyCompleted.length;
   const completedDays = weeklyCompleted.filter(Boolean).length;
@@ -42,6 +40,11 @@ export default function ProfilePage({ onBack }) {
       addToast('✅ Profile updated successfully!', 'success');
     }
     setIsEditing(false);
+  };
+
+  const handleSwitchGroup = (groupId) => {
+    actions.switchGroup(groupId);
+    addToast('Switched active pact!', 'info');
   };
 
   return (
@@ -100,28 +103,83 @@ export default function ProfilePage({ onBack }) {
             <div className="section-title" style={{ marginTop: 16 }}>Choose Avatar</div>
             <div className="flex gap-8" style={{ flexWrap: 'wrap', marginBottom: 12 }}>
               {AVATAR_OPTIONS.map(a => (
-                <button
-                  key={a}
-                  className={`avatar-option ${selectedAvatar === a ? 'selected' : ''}`}
-                  onClick={() => setSelectedAvatar(a)}
-                >
-                  {a}
-                </button>
+                <button key={a} className={`avatar-option ${selectedAvatar === a ? 'selected' : ''}`} onClick={() => setSelectedAvatar(a)}>{a}</button>
               ))}
             </div>
             <div className="section-title">Choose Color</div>
             <div className="flex gap-8" style={{ flexWrap: 'wrap' }}>
               {AVATAR_BG_OPTIONS.map(bg => (
-                <button
-                  key={bg}
-                  className={`color-option ${selectedBg === bg ? 'selected' : ''}`}
-                  style={{ background: bg }}
-                  onClick={() => setSelectedBg(bg)}
-                />
+                <button key={bg} className={`color-option ${selectedBg === bg ? 'selected' : ''}`} style={{ background: bg }} onClick={() => setSelectedBg(bg)} />
               ))}
             </div>
           </div>
         )}
+      </div>
+
+      {/* My Pacts Section */}
+      <div className="card" style={{ marginTop: 20 }}>
+        <div className="section-title">
+          <Users size={14} />
+          MY PACTS ({allGroups.length})
+        </div>
+        <div className="flex flex-col gap-8">
+          {allGroups.length === 0 && (
+            <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.85rem', padding: 16 }}>
+              You haven't joined any pacts yet. Go to Clubs to create or join one!
+            </div>
+          )}
+          {allGroups.map(g => {
+            const isActive = g.id === group?.id;
+            const hpPercent = ((g.hp || 0) / (g.max_hp || 100)) * 100;
+            return (
+              <div
+                key={g.id}
+                onClick={() => !isActive && handleSwitchGroup(g.id)}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: 12,
+                  padding: '12px 14px',
+                  borderRadius: 'var(--radius-md)',
+                  background: isActive ? 'rgba(167, 139, 250, 0.08)' : 'rgba(255,255,255,0.03)',
+                  border: `1px solid ${isActive ? 'rgba(167,139,250,0.3)' : 'var(--border-default)'}`,
+                  cursor: isActive ? 'default' : 'pointer',
+                  transition: 'all var(--transition-base)',
+                }}
+              >
+                <div style={{
+                  width: 40, height: 40, borderRadius: 'var(--radius-md)',
+                  background: isActive ? 'linear-gradient(135deg, #7C3AED, #A855F7)' : 'rgba(150,150,150,0.15)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  color: isActive ? '#fff' : 'var(--text-muted)', fontWeight: 800, fontSize: '0.85rem',
+                }}>
+                  {(g.name || 'P').charAt(0)}
+                </div>
+                <div style={{ flex: 1 }}>
+                  <div style={{ fontWeight: 700, fontSize: '0.9rem' }} className="flex items-center gap-8">
+                    {g.name || 'Unnamed Pact'}
+                    {isActive && <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>Active</span>}
+                    {g.shield_active && <Shield size={12} style={{ color: 'var(--accent-purple)' }} />}
+                  </div>
+                  <div className="flex items-center gap-8" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                    <span className="flex items-center gap-4">
+                      <Heart size={10} /> {g.hp || 0}/{g.max_hp || 100} HP
+                    </span>
+                    <span>Code: {g.invite_code}</span>
+                    {g.streak > 0 && <span>🔥 {g.streak}d</span>}
+                  </div>
+                  <div style={{ marginTop: 4, height: 3, borderRadius: 2, background: 'rgba(150,150,150,0.12)', overflow: 'hidden' }}>
+                    <div style={{
+                      width: `${hpPercent}%`, height: '100%', borderRadius: 2,
+                      background: hpPercent > 60 ? 'var(--accent-green)' : hpPercent > 30 ? 'var(--accent-yellow)' : 'var(--accent-red)',
+                    }} />
+                  </div>
+                </div>
+                {!isActive && <ChevronRight size={16} style={{ color: 'var(--text-muted)' }} />}
+              </div>
+            );
+          })}
+        </div>
       </div>
 
       {/* Stats Grid */}
@@ -212,10 +270,10 @@ export default function ProfilePage({ onBack }) {
             <span className="achievement-name">Perfectionist</span>
             <span className="achievement-desc">90%+ consistency</span>
           </div>
-          <div className={`achievement ${completedDays >= 7 ? 'unlocked' : 'locked'}`}>
-            <span className="achievement-icon">🌟</span>
-            <span className="achievement-name">Perfect Week</span>
-            <span className="achievement-desc">7/7 days completed</span>
+          <div className={`achievement ${allGroups.length >= 2 ? 'unlocked' : 'locked'}`}>
+            <span className="achievement-icon">🤝</span>
+            <span className="achievement-name">Social Butterfly</span>
+            <span className="achievement-desc">Join 2+ pacts</span>
           </div>
           <div className="achievement locked">
             <span className="achievement-icon">👑</span>
