@@ -182,12 +182,13 @@ function gameReducer(state, action) {
     }
 
     case 'ADD_HABIT': {
-      const { title, icon, id } = action.payload;
+      const { title, icon, id, is_group_habit } = action.payload;
       const newHabit = {
         id: id || `h${Date.now()}`,
         title,
         icon: icon || '📌',
         status: 'pending',
+        is_group_habit: is_group_habit || false,
       };
       return { ...state, habits: [...state.habits, newHabit] };
     }
@@ -426,6 +427,24 @@ export function useSupabaseActions() {
         }
       } else {
         dispatch({ type: 'ADD_HABIT', payload: { title, icon } });
+      }
+    },
+
+    async addGroupHabit(title, icon) {
+      if (!isDemo && userId && groupId) {
+        try {
+          // Add habit for all group members
+          const memberIds = state.groupMembers.map(m => m.id);
+          await api.addGroupHabit(groupId, memberIds, title, icon);
+          // Add locally for current user
+          dispatch({ type: 'ADD_HABIT', payload: { title, icon, is_group_habit: true, id: `gh-${Date.now()}` } });
+        } catch (err) {
+          console.error('Error adding group habit:', err);
+          dispatch({ type: 'ADD_HABIT', payload: { title, icon, is_group_habit: true } });
+        }
+      } else {
+        // Demo mode — just add for current user
+        dispatch({ type: 'ADD_HABIT', payload: { title, icon, is_group_habit: true } });
       }
     },
 

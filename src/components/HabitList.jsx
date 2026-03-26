@@ -1,16 +1,17 @@
 import { useState } from 'react';
-import { useGameState, useGameDispatch, useToast, useSupabaseActions } from '../context/GameContext';
-import { CheckCircle, XCircle, ListChecks, Plus, Trash2, X } from 'lucide-react';
+import { useGameState, useToast, useSupabaseActions } from '../context/GameContext';
+import { CheckCircle, XCircle, ListChecks, Plus, Trash2, X, Users, User } from 'lucide-react';
 
 const HABIT_ICONS = ['📚', '💪', '📖', '🧘', '💧', '🏃', '🎨', '💻', '🎵', '🍎', '✍️', '🧠', '🛌', '🚶', '📝'];
 
 export default function HabitList() {
-  const { habits, revivalMode, revivalProgress } = useGameState();
+  const { habits, revivalMode, revivalProgress, group, groupMembers } = useGameState();
   const addToast = useToast();
   const actions = useSupabaseActions();
   const [showAddForm, setShowAddForm] = useState(false);
   const [newTitle, setNewTitle] = useState('');
   const [newIcon, setNewIcon] = useState('📚');
+  const [habitScope, setHabitScope] = useState('private'); // 'private' or 'group'
 
   const handleComplete = (habitId, title) => {
     actions.completeHabit(habitId);
@@ -22,10 +23,17 @@ export default function HabitList() {
     addToast(`❌ "${title}" missed! -15 HP`, 'danger');
   };
 
-  const handleAddHabit = () => {
+  const handleAddHabit = async () => {
     if (!newTitle.trim()) return;
-    actions.addHabit(newTitle.trim(), newIcon);
-    addToast(`➕ New habit "${newTitle.trim()}" added!`, 'info');
+
+    if (habitScope === 'group' && group && groupMembers.length > 0) {
+      // Add habit for all group members
+      await actions.addGroupHabit(newTitle.trim(), newIcon);
+      addToast(`👥 Group habit "${newTitle.trim()}" added for all ${groupMembers.length} members!`, 'success');
+    } else {
+      actions.addHabit(newTitle.trim(), newIcon);
+      addToast(`➕ New habit "${newTitle.trim()}" added!`, 'info');
+    }
     setNewTitle('');
     setNewIcon('📚');
     setShowAddForm(false);
@@ -68,6 +76,35 @@ export default function HabitList() {
       {/* Add Habit Form */}
       {showAddForm && (
         <div className="add-habit-form fade-in-up" style={{ marginBottom: 16 }}>
+          {/* Scope Toggle */}
+          <div className="flex gap-8" style={{ marginBottom: 10 }}>
+            <button
+              className={`btn btn-sm ${habitScope === 'private' ? 'btn-purple' : 'btn-outline'}`}
+              onClick={() => setHabitScope('private')}
+              style={{ flex: 1 }}
+            >
+              <User size={12} /> Private
+            </button>
+            <button
+              className={`btn btn-sm ${habitScope === 'group' ? 'btn-purple' : 'btn-outline'}`}
+              onClick={() => setHabitScope('group')}
+              style={{ flex: 1 }}
+            >
+              <Users size={12} /> Group ({groupMembers?.length || 0})
+            </button>
+          </div>
+          {habitScope === 'group' && (
+            <div style={{
+              fontSize: '0.75rem',
+              color: 'var(--accent-purple)',
+              marginBottom: 8,
+              padding: '4px 8px',
+              background: 'rgba(167,139,250,0.08)',
+              borderRadius: 'var(--radius-sm)',
+            }}>
+              👥 This habit will be added for all {groupMembers?.length || 0} group members
+            </div>
+          )}
           <div className="flex gap-8" style={{ marginBottom: 10 }}>
             <input
               type="text"
@@ -130,8 +167,23 @@ export default function HabitList() {
                 fontSize: '0.9rem',
                 textDecoration: habit.status === 'completed' ? 'line-through' : 'none',
                 color: habit.status === 'missed' ? 'var(--text-muted)' : 'var(--text-primary)',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 6,
               }}>
                 {habit.title}
+                {habit.is_group_habit && (
+                  <span style={{
+                    fontSize: '0.6rem',
+                    background: 'rgba(167,139,250,0.12)',
+                    color: 'var(--accent-purple)',
+                    padding: '1px 5px',
+                    borderRadius: 'var(--radius-sm)',
+                    fontWeight: 700,
+                  }}>
+                    GROUP
+                  </span>
+                )}
               </div>
             </div>
 

@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { useGameState, useGameDispatch, useToast } from '../context/GameContext';
-import { Swords, Shield, Crosshair } from 'lucide-react';
+import { Swords, Shield, Crosshair, AlertTriangle, Clock, ChevronDown, ChevronUp } from 'lucide-react';
 import { MOCK_TEAMS } from '../data/mockData';
 
 export default function AttackPanel() {
@@ -8,15 +8,26 @@ export default function AttackPanel() {
   const dispatch = useGameDispatch();
   const addToast = useToast();
   const [attackAnimation, setAttackAnimation] = useState(null);
+  const [enemyHps, setEnemyHps] = useState(() => {
+    const initial = {};
+    MOCK_TEAMS.filter(t => !t.isPlayerTeam).forEach(t => {
+      initial[t.id] = t.hp;
+    });
+    return initial;
+  });
+  const [attackLog, setAttackLog] = useState([
+    { id: 1, attacker: 'Shadow Foxes', damage: 10, time: '2 hrs ago', incoming: true },
+    { id: 2, attacker: 'Neon Titans', damage: 8, time: '5 hrs ago', incoming: true },
+  ]);
+  const [showLog, setShowLog] = useState(false);
 
-  const myTeam = group ? {
-    id: group.id,
-    name: group.name,
-    hp: group.hp,
-    maxHp: group.max_hp || 100,
-  } : MOCK_TEAMS[0];
+  const myHp = group?.hp || 0;
 
-  const enemyTeams = MOCK_TEAMS.filter(t => !t.isPlayerTeam && t.hp > 0);
+  const enemyTeams = MOCK_TEAMS.filter(t => !t.isPlayerTeam && (enemyHps[t.id] ?? t.hp) > 0).map(t => ({
+    ...t,
+    hp: enemyHps[t.id] ?? t.hp,
+    isPlayerTeam: false,
+  }));
 
   const handleAttack = (targetId) => {
     const target = enemyTeams.find(t => t.id === targetId);
@@ -27,14 +38,30 @@ export default function AttackPanel() {
       return;
     }
 
-    const damage = myTeam.hp > target.hp ? 15 : 10;
+    if (target.hp >= myHp) {
+      addToast(`⚠️ Cannot attack ${target.name} — their HP (${target.hp}) is not lower than yours (${myHp})!`, 'warning');
+      return;
+    }
+
+    const damage = Math.floor(Math.random() * 8) + 8; // 8-15 damage
     setAttackAnimation(targetId);
 
     setTimeout(() => {
-      addToast(`⚔️ Attack successful on ${target.name}! -${damage} HP`, 'danger');
+      const newHp = Math.max((enemyHps[targetId] ?? target.hp) - damage, 0);
+      setEnemyHps(prev => ({ ...prev, [targetId]: newHp }));
+      
+      // Add to attack log
+      setAttackLog(prev => [
+        { id: Date.now(), attacker: target.name, damage, time: 'Just now', incoming: false },
+        ...prev.slice(0, 9),
+      ]);
+
+      addToast(`⚔️ Hit ${target.name} for ${damage} damage! (${newHp} HP remaining)`, 'danger');
       setAttackAnimation(null);
     }, 600);
   };
+
+  const canAttack = (targetHp) => targetHp < myHp;
 
   return (
     <div className="card" id="attack-panel">
@@ -43,67 +70,89 @@ export default function AttackPanel() {
         ATTACK SYSTEM
       </div>
 
-      <div style={{ fontSize: '0.8rem', color: 'var(--text-secondary)', marginBottom: 16 }}>
-        Your HP determines attack power. Stronger bases deal more damage.
+      <div style={{ fontSize: '0.78rem', color: 'var(--text-secondary)', marginBottom: 12 }}>
+        Attack pacts with <strong>lower HP</strong> than yours ({myHp} HP). Stronger bases deal more damage.
       </div>
 
       <div className="flex flex-col gap-8 stagger">
-        {enemyTeams.map(team => (
-          <div
-            key={team.id}
-            className={`fade-in-up ${attackAnimation === team.id ? 'attack-flash shake' : ''}`}
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: 12,
-              padding: '12px 14px',
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(255,255,255,0.03)',
-              border: '1px solid var(--border-default)',
-              transition: 'all var(--transition-base)',
-            }}
-          >
-            <div style={{
-              width: 36,
-              height: 36,
-              borderRadius: 'var(--radius-md)',
-              background: 'rgba(239, 68, 68, 0.15)',
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'center',
-              flexShrink: 0,
-            }}>
-              <Crosshair size={18} style={{ color: 'var(--accent-red)' }} />
-            </div>
-            <div style={{ flex: 1, minWidth: 0 }}>
-              <div style={{ fontWeight: 600, fontSize: '0.9rem' }} className="flex items-center gap-8">
-                {team.name}
-                {team.shieldActive && (
-                  <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>
-                    <Shield size={10} />
-                    Shielded
-                  </span>
-                )}
-              </div>
-              <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)' }}>
-                {team.hp} HP remaining
-              </div>
-            </div>
-            <button
-              className="btn btn-red btn-sm"
-              onClick={() => handleAttack(team.id)}
-              disabled={team.shieldActive || attackAnimation !== null}
+        {enemyTeams.map(team => {
+          const attackable = canAttack(team.hp);
+          const hpPercent = (team.hp / (team.maxHp || 100)) * 100;
+
+          return (
+            <div
+              key={team.id}
+              className={`fade-in-up ${attackAnimation === team.id ? 'attack-flash shake' : ''}`}
               style={{
-                opacity: team.shieldActive ? 0.4 : 1,
-                cursor: team.shieldActive ? 'not-allowed' : 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                gap: 12,
+                padding: '12px 14px',
+                borderRadius: 'var(--radius-md)',
+                background: attackable ? 'rgba(255,255,255,0.03)' : 'rgba(150,150,150,0.05)',
+                border: `1px solid ${attackable ? 'var(--border-default)' : 'rgba(150,150,150,0.15)'}`,
+                transition: 'all var(--transition-base)',
+                opacity: attackable ? 1 : 0.55,
               }}
-              id={`attack-${team.id}`}
             >
-              <Swords size={14} />
-              Attack
-            </button>
-          </div>
-        ))}
+              <div style={{
+                width: 36,
+                height: 36,
+                borderRadius: 'var(--radius-md)',
+                background: attackable ? 'rgba(239, 68, 68, 0.15)' : 'rgba(150,150,150,0.1)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                flexShrink: 0,
+              }}>
+                <Crosshair size={18} style={{ color: attackable ? 'var(--accent-red)' : 'var(--text-muted)' }} />
+              </div>
+              <div style={{ flex: 1, minWidth: 0 }}>
+                <div style={{ fontWeight: 600, fontSize: '0.9rem' }} className="flex items-center gap-8">
+                  {team.name}
+                  {team.shieldActive && (
+                    <span className="badge badge-purple" style={{ fontSize: '0.6rem' }}>
+                      <Shield size={10} />
+                      Shielded
+                    </span>
+                  )}
+                  {!attackable && !team.shieldActive && (
+                    <span className="badge badge-yellow" style={{ fontSize: '0.6rem' }}>
+                      <AlertTriangle size={10} />
+                      Too Strong
+                    </span>
+                  )}
+                </div>
+                <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>
+                  {team.hp} HP remaining
+                </div>
+                {/* Mini HP bar */}
+                <div style={{ marginTop: 4, height: 4, borderRadius: 2, background: 'rgba(150,150,150,0.15)', overflow: 'hidden' }}>
+                  <div style={{
+                    width: `${hpPercent}%`,
+                    height: '100%',
+                    borderRadius: 2,
+                    background: hpPercent > 60 ? 'var(--accent-green)' : hpPercent > 30 ? 'var(--accent-yellow)' : 'var(--accent-red)',
+                    transition: 'width 0.5s ease',
+                  }} />
+                </div>
+              </div>
+              <button
+                className="btn btn-red btn-sm"
+                onClick={() => handleAttack(team.id)}
+                disabled={!attackable || team.shieldActive || attackAnimation !== null}
+                style={{
+                  opacity: (!attackable || team.shieldActive) ? 0.3 : 1,
+                  cursor: (!attackable || team.shieldActive) ? 'not-allowed' : 'pointer',
+                }}
+                id={`attack-${team.id}`}
+              >
+                <Swords size={14} />
+                Attack
+              </button>
+            </div>
+          );
+        })}
 
         {enemyTeams.length === 0 && (
           <div style={{
@@ -112,7 +161,67 @@ export default function AttackPanel() {
             color: 'var(--text-muted)',
             fontSize: '0.85rem',
           }}>
-            No targets available — all enemies defeated!
+            🏆 All enemies defeated! You dominate the leaderboard!
+          </div>
+        )}
+      </div>
+
+      {/* Attack Log */}
+      <div style={{ marginTop: 16 }}>
+        <button
+          onClick={() => setShowLog(!showLog)}
+          className="flex items-center gap-8"
+          style={{
+            background: 'none',
+            border: 'none',
+            color: 'var(--text-secondary)',
+            fontSize: '0.8rem',
+            fontWeight: 600,
+            cursor: 'pointer',
+            padding: '4px 0',
+            width: '100%',
+            justifyContent: 'space-between',
+          }}
+        >
+          <span className="flex items-center gap-8">
+            <Clock size={12} />
+            Attack Log ({attackLog.length})
+          </span>
+          {showLog ? <ChevronUp size={14} /> : <ChevronDown size={14} />}
+        </button>
+
+        {showLog && (
+          <div className="flex flex-col gap-4" style={{ marginTop: 8 }}>
+            {attackLog.map(log => (
+              <div key={log.id} style={{
+                display: 'flex',
+                alignItems: 'center',
+                gap: 8,
+                padding: '6px 10px',
+                borderRadius: 'var(--radius-sm)',
+                background: log.incoming ? 'rgba(239, 68, 68, 0.06)' : 'rgba(34, 197, 94, 0.06)',
+                border: `1px solid ${log.incoming ? 'rgba(239, 68, 68, 0.12)' : 'rgba(34, 197, 94, 0.12)'}`,
+                fontSize: '0.78rem',
+              }}>
+                <span style={{ fontWeight: 700, color: log.incoming ? 'var(--accent-red)' : 'var(--accent-green)' }}>
+                  {log.incoming ? '🔻' : '🔺'}
+                </span>
+                <span style={{ flex: 1, color: 'var(--text-secondary)' }}>
+                  {log.incoming
+                    ? `${log.attacker} attacked your base (-${log.damage} HP)`
+                    : `You attacked ${log.attacker} (-${log.damage} HP)`
+                  }
+                </span>
+                <span style={{ color: 'var(--text-muted)', fontSize: '0.7rem', flexShrink: 0 }}>
+                  {log.time}
+                </span>
+              </div>
+            ))}
+            {attackLog.length === 0 && (
+              <div style={{ textAlign: 'center', color: 'var(--text-muted)', fontSize: '0.8rem', padding: 8 }}>
+                No attacks yet.
+              </div>
+            )}
           </div>
         )}
       </div>

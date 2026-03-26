@@ -5,8 +5,7 @@ import LoginPage from './components/LoginPage';
 import GroupSetup from './components/GroupSetup';
 import BaseHealth from './components/BaseHealth';
 import AnimatedBase from './components/AnimatedBase';
-import CherryBlossomPetals from './components/FloatingCharacters';
-import FloatingRewards from './components/FloatingRewards';
+// Floating elements removed per user request
 import HabitList from './components/HabitList';
 import TeamDashboard from './components/TeamDashboard';
 import Leaderboard from './components/Leaderboard';
@@ -43,7 +42,7 @@ function AppContent() {
   if (loading) {
     return (
       <div className="login-page">
-        <CherryBlossomPetals />
+
         <div style={{ textAlign: 'center' }}>
           <div className="login-logo" style={{ fontSize: '4rem' }}>🌸</div>
           <Loader size={32} className="spin-icon" style={{ color: 'var(--accent-pink)', marginTop: 16 }} />
@@ -57,7 +56,6 @@ function AppContent() {
   if (!session) {
     return (
       <>
-        <CherryBlossomPetals />
         <LoginPage />
         <ToastContainer />
       </>
@@ -68,7 +66,6 @@ function AppContent() {
   if (!hasGroup) {
     return (
       <>
-        <CherryBlossomPetals />
         <GroupSetup />
         <ToastContainer />
       </>
@@ -81,8 +78,7 @@ function AppContent() {
 
   return (
     <>
-      <CherryBlossomPetals />
-      <FloatingRewards />
+
 
       {/* Header */}
       <header className="app-header">

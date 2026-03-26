@@ -44,8 +44,19 @@ export async function getProfile(userId) {
     .from('profiles')
     .select('*')
     .eq('id', userId)
-    .single();
-  if (error && error.code !== 'PGRST116') throw error;
+    .maybeSingle();
+  if (error) { console.warn('getProfile error:', error.message); return null; }
+  
+  // If profile doesn't exist, create it
+  if (!data) {
+    const { data: newProfile, error: insertErr } = await supabase
+      .from('profiles')
+      .upsert({ id: userId, display_name: 'Adventurer' }, { onConflict: 'id' })
+      .select()
+      .single();
+    if (insertErr) { console.warn('Profile auto-create error:', insertErr.message); return null; }
+    return newProfile;
+  }
   return data;
 }
 
@@ -70,6 +81,24 @@ function generateCode() {
 }
 
 export async function createGroup(userId, name) {
+  // Ensure profile exists (FK constraint: created_by references profiles.id)
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    // Profile wasn't auto-created by trigger, create it manually
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .insert({ id: userId, display_name: 'Adventurer' });
+    if (profErr && profErr.code !== '23505') { // 23505 = unique violation (already exists)
+      console.error('Profile creation error:', profErr);
+      throw new Error('Failed to setup profile. Please try again.');
+    }
+  }
+
   const inviteCode = generateCode();
   const { data, error } = await supabase
     .from('groups')
@@ -80,26 +109,49 @@ export async function createGroup(userId, name) {
     })
     .select()
     .single();
-  if (error) throw error;
+  if (error) {
+    console.error('Group creation error:', error);
+    throw new Error('Failed to create group: ' + error.message);
+  }
 
   // Auto-join the creator
-  await supabase.from('group_members').insert({
+  const { error: joinErr } = await supabase.from('group_members').insert({
     group_id: data.id,
     user_id: userId,
     role: 'owner',
   });
+  if (joinErr) {
+    console.error('Auto-join error:', joinErr);
+    // Don't throw — group was created, just the join failed
+  }
 
   return data;
 }
 
 export async function joinGroupByCode(userId, code) {
+  // Ensure profile exists (FK constraint)
+  const { data: existingProfile } = await supabase
+    .from('profiles')
+    .select('id')
+    .eq('id', userId)
+    .maybeSingle();
+
+  if (!existingProfile) {
+    const { error: profErr } = await supabase
+      .from('profiles')
+      .insert({ id: userId, display_name: 'Adventurer' });
+    if (profErr && profErr.code !== '23505') {
+      console.error('Profile creation error:', profErr);
+    }
+  }
+
   // Find group by invite code
   const { data: group, error: findError } = await supabase
     .from('groups')
     .select('*')
     .eq('invite_code', code.toUpperCase())
-    .single();
-  if (findError) throw new Error('Invalid group code. Please check and try again.');
+    .maybeSingle();
+  if (findError || !group) throw new Error('Invalid group code. Please check and try again.');
 
   // Check if already a member
   const { data: existing } = await supabase
@@ -107,7 +159,7 @@ export async function joinGroupByCode(userId, code) {
     .select('id')
     .eq('group_id', group.id)
     .eq('user_id', userId)
-    .single();
+    .maybeSingle();
 
   if (existing) return group; // Already joined
 
@@ -115,7 +167,10 @@ export async function joinGroupByCode(userId, code) {
   const { error: joinError } = await supabase
     .from('group_members')
     .insert({ group_id: group.id, user_id: userId });
-  if (joinError) throw joinError;
+  if (joinError) {
+    console.error('Join error:', joinError);
+    throw new Error('Failed to join group: ' + joinError.message);
+  }
 
   return group;
 }
@@ -218,6 +273,25 @@ export async function addHabit(userId, groupId, title, icon = '📌') {
     .single();
   if (error) throw error;
   return data;
+}
+
+export async function addGroupHabit(groupId, memberIds, title, icon = '📌') {
+  const today = getLocalDate();
+  const rows = memberIds.map(userId => ({
+    user_id: userId,
+    group_id: groupId,
+    title,
+    icon,
+    status: 'pending',
+    date: today,
+  }));
+
+  const { data, error } = await supabase
+    .from('habits')
+    .insert(rows)
+    .select();
+  if (error) throw error;
+  return data || [];
 }
 
 export async function updateHabitStatus(habitId, status) {
